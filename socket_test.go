@@ -123,6 +123,26 @@ func TestSocketSend(t *testing.T) {
 	}
 }
 
+func TestMultipart(t *testing.T) {
+	env := &Env{Tester: t, serverType: PULL, endpoint: TCP_ENDPOINT, clientType: PUSH}
+	env.setupEnv()
+	defer env.destroyEnv()
+
+	data := [][]byte{[]byte("test"), []byte("test2"), []byte("test3")}
+	err := env.client.SendMultipart(data, 0)
+	if err != nil {
+		t.Fatal("Error on multipart send", err)
+	}
+	rep, err := env.server.RecvMultipart(0)
+	if err != nil {
+		t.Fatal("Error on multipart receive", err)
+	}
+	defer rep.CloseMsgs()
+	if !reflect.DeepEqual(rep.Data, data) {
+		t.Fatalf("Multipart Receive %q, expected %q", rep.Data, data)
+	}
+}
+
 func benchmarkSendReceive(b *testing.B, sizeData int, endpoint string) {
 	env := &Env{Tester: b, serverType: PULL, endpoint: endpoint, clientType: PUSH}
 	env.setupEnv()
@@ -135,15 +155,15 @@ func benchmarkSendReceive(b *testing.B, sizeData int, endpoint string) {
 	for i := 0; i < b.N; i++ {
 		err := env.client.Send(data, 0)
 		if err != nil {
-			panic(err)
+			b.Fatal(err)
 		}
 		rep, err = env.server.Recv(0)
 		if err != nil {
-			panic(err)
+			b.Fatal(err)
 		}
 		err = rep.CloseMsg()
 		if err != nil {
-			panic(err)
+			b.Fatal(err)
 		}
 	}
 	b.StopTimer()
