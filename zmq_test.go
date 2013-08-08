@@ -1,9 +1,12 @@
-package zerogo
+package zmq
 
 import (
 	check "launchpad.net/gocheck"
 	"testing"
 )
+
+const TCP_ENDPOINT = "tcp://127.0.0.1:9999"
+const INPROC_ENDPOINT = "inproc://test_proc"
 
 func TestCheck(t *testing.T) { check.TestingT(t) }
 
@@ -30,8 +33,10 @@ func (s *SocketSuite) SetUpSuite(c *check.C) {
 }
 
 func (s *SocketSuite) TearDownSuite(c *check.C) {
-	err := s.Destroy()
-	c.Assert(err, check.IsNil, check.Commentf("Error on context destruction"))
+	go func() {
+		err := s.Destroy()
+		c.Assert(err, check.IsNil, check.Commentf("Error on context destruction"))
+	}()
 }
 
 func (ctx *SocketSuite) TestSocketCreate(c *check.C) {
@@ -75,14 +80,15 @@ func (ctx *SocketSuite) TestSocketSend(c *check.C) {
 	err = req_socket.Send(data, 0)
 	c.Assert(err, check.IsNil, check.Commentf("Error on send"))
 	response, err := rep_socket.Recv(0)
+	response.FreeMsg()
 
 	c.Assert(err, check.IsNil, check.Commentf("Error on receive"))
-	c.Assert(response, check.DeepEquals, data)
-	err = rep_socket.Send(response, 0)
+	c.Assert(response.Data, check.DeepEquals, data)
+	err = rep_socket.Send(response.Data, 0)
 	c.Assert(err, check.IsNil, check.Commentf("Error on response send"))
 	response, err = req_socket.Recv(0)
 	c.Assert(err, check.IsNil, check.Commentf("Error on response receive"))
-	c.Assert(response, check.DeepEquals, data)
+	c.Assert(response.Data, check.DeepEquals, data)
 
 	err = req_socket.Disconnect(endpoint)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket disconnect"))
@@ -90,28 +96,64 @@ func (ctx *SocketSuite) TestSocketSend(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket unbind"))
 }
 
+func (ctx *SocketSuite) benchmarkSendReceive(c *check.C, sizeData int, endpoint string) {
+	data := make([]byte, sizeData)
 
-func (ctx *SocketSuite) BenchmarkSocket(c *check.C) {
-	endpoint := "tcp://127.0.0.1:9999"
-	data := []byte("test")
+	rep_socket, err := ctx.NewSocket(PULL)
+	if err != nil { panic(err) }
+	req_socket, err := ctx.NewSocket(PUSH)
+	if err != nil { panic(err) }
 
-	rep_socket, _ := ctx.NewSocket(PUSH)
-	req_socket, _ := ctx.NewSocket(PULL)
+	err = rep_socket.Bind(endpoint)
+	if err != nil { panic(err) }
+	err = req_socket.Connect(endpoint)
+	if err != nil { panic(err) }
 
-	rep_socket.Bind(endpoint)
-
-	req_socket.Connect(endpoint)
-
-	for i := 0; i < c.N; i++{
+	c.ResetTimer()
+	var rep *ReceivedMessage
+	for i := 0; i < c.N; i++ {
 		err := req_socket.Send(data, 0)
-		if err != nil { continue }
-		_, err = rep_socket.Recv(0)
-		if err != nil { continue }
+		if err != nil {
+			panic(err)
+		}
+		rep, err = rep_socket.Recv(0)
+		if err != nil {
+			panic(err)
+		}
+		err = rep.FreeMsg()
+		if err != nil { panic(err) }
 	}
+	c.StopTimer()
 
 	req_socket.Disconnect(endpoint)
 	rep_socket.Unbind(endpoint)
 
-	rep_socket.Close()
-	req_socket.Close()
+	err = rep_socket.Close()
+	if err != nil { panic(err) }
+	err = req_socket.Close()
+	if err != nil { panic(err) }
+}
+
+func (ctx *SocketSuite) Benchmark1BSendReceiveTcp(c *check.C) {
+	ctx.benchmarkSendReceive(c, 1, TCP_ENDPOINT)
+}
+
+func (ctx *SocketSuite) Benchmark1KBSendReceiveTcp(c *check.C) {
+	ctx.benchmarkSendReceive(c, 1e3, TCP_ENDPOINT)
+}
+
+func (ctx *SocketSuite) Benchmark1MBSendReceiveTcp(c *check.C) {
+	ctx.benchmarkSendReceive(c, 1e6, TCP_ENDPOINT)
+}
+
+func (ctx *SocketSuite) Benchmark1BSendReceiveInproc(c *check.C) {
+	ctx.benchmarkSendReceive(c, 1, INPROC_ENDPOINT + "_1b")
+}
+
+func (ctx *SocketSuite) Benchmark1KBSendReceiveInproc(c *check.C) {
+	ctx.benchmarkSendReceive(c, 1e3, INPROC_ENDPOINT + "_1K")
+}
+
+func (ctx *SocketSuite) Benchmark1MBSendReceiveInproc(c *check.C) {
+	ctx.benchmarkSendReceive(c, 1e6, INPROC_ENDPOINT + "_1M")
 }
