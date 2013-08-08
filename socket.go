@@ -8,18 +8,28 @@ package zmq
 import "C"
 
 import (
-	"reflect"
 	"unsafe"
 )
 
 type Socket struct {
-	s unsafe.Pointer
+	psocket unsafe.Pointer
 }
 
-type MessagePart struct {
-	Data []byte
-	msg  *C.zmq_msg_t
-}
+type SocketType C.int
+
+const (
+	REQ    = SocketType(C.ZMQ_REQ)
+	REP    = SocketType(C.ZMQ_REP)
+	ROUTER = SocketType(C.ZMQ_ROUTER)
+	DEALER = SocketType(C.ZMQ_DEALER)
+	PULL   = SocketType(C.ZMQ_PULL)
+	PUSH   = SocketType(C.ZMQ_PUSH)
+	PUB    = SocketType(C.ZMQ_PUB)
+	SUB    = SocketType(C.ZMQ_SUB)
+	XSUB   = SocketType(C.ZMQ_XSUB)
+	XPUB   = SocketType(C.ZMQ_XPUB)
+	PAIR   = SocketType(C.ZMQ_PAIR)
+)
 
 type SendFlag C.int
 
@@ -29,8 +39,8 @@ const (
 )
 
 // Close 0mq socket.
-func (soc *Socket) Close() error {
-	rc, err := C.zmq_close(soc.s)
+func (s *Socket) Close() error {
+	rc, err := C.zmq_close(s.psocket)
 	if rc == 0 {
 		return nil
 	}
@@ -38,10 +48,10 @@ func (soc *Socket) Close() error {
 }
 
 // Bind the socket to the given address
-func (soc *Socket) Bind(address string) error {
+func (s *Socket) Bind(address string) error {
 	addr := C.CString(address)
 	defer C.free(unsafe.Pointer(addr))
-	rc, err := C.zmq_bind(soc.s, addr)
+	rc, err := C.zmq_bind(s.psocket, addr)
 	if rc == 0 {
 		return nil
 	}
@@ -49,10 +59,10 @@ func (soc *Socket) Bind(address string) error {
 }
 
 // Unbind the socket from the given address
-func (soc *Socket) Unbind(address string) error {
+func (s *Socket) Unbind(address string) error {
 	addr := C.CString(address)
 	defer C.free(unsafe.Pointer(addr))
-	rc, err := C.zmq_unbind(soc.s, addr)
+	rc, err := C.zmq_unbind(s.psocket, addr)
 	if rc == 0 {
 		return nil
 	}
@@ -60,10 +70,10 @@ func (soc *Socket) Unbind(address string) error {
 }
 
 // Connect the socket to the given address
-func (soc *Socket) Connect(address string) error {
+func (s *Socket) Connect(address string) error {
 	addr := C.CString(address)
 	defer C.free(unsafe.Pointer(addr))
-	rc, err := C.zmq_connect(soc.s, addr)
+	rc, err := C.zmq_connect(s.psocket, addr)
 	if rc == 0 {
 		return nil
 	}
@@ -71,10 +81,10 @@ func (soc *Socket) Connect(address string) error {
 }
 
 // Disconnect the socket from the given address
-func (soc *Socket) Disconnect(address string) error {
+func (s *Socket) Disconnect(address string) error {
 	addr := C.CString(address)
 	defer C.free(unsafe.Pointer(addr))
-	rc, err := C.zmq_disconnect(soc.s, addr)
+	rc, err := C.zmq_disconnect(s.psocket, addr)
 	if rc == 0 {
 		return nil
 	}
@@ -82,7 +92,7 @@ func (soc *Socket) Disconnect(address string) error {
 }
 
 // Send data to the socket
-func (soc *Socket) Send(data []byte, flag SendFlag) error {
+func (s *Socket) Send(data []byte, flag SendFlag) error {
 	var msg C.zmq_msg_t
 	pdata := unsafe.Pointer(&data[0])
 	sizeData := C.size_t(len(data))
@@ -93,7 +103,7 @@ func (soc *Socket) Send(data []byte, flag SendFlag) error {
 	// and improve performances
 	C.zmq_msg_init_data(&msg, pdata, sizeData, nil, nil)
 	for {
-		rc, err := C.zmq_msg_send(&msg, soc.s, C.int(0))
+		rc, err := C.zmq_msg_send(&msg, s.psocket, C.int(0))
 		// Retry send on an interrupted system call
 		if rc == -1 && C.zmq_errno() == C.int(C.EINTR) {
 			continue
@@ -107,40 +117,57 @@ func (soc *Socket) Send(data []byte, flag SendFlag) error {
 	return nil
 }
 
-// Build a byte slice with content pointing to the message data
-// The slice is manually build from the data pointer and message size.
-// Since data is not managed by the gc, You need to call zmq_msg_close to free data
-func buildSliceFromMsg(msg *C.zmq_msg_t) []byte {
-	pdata := C.zmq_msg_data(msg)
-	sizeMsg := int(C.zmq_msg_size(msg))
-	var x []unsafe.Pointer
-	s := (*reflect.SliceHeader)(unsafe.Pointer(&x))
-	s.Data = uintptr(pdata)
-	s.Len = sizeMsg
-	s.Cap = sizeMsg
-	return *(*[]byte)(unsafe.Pointer(&x))
-}
-
-// Close zmq message to release data and memory
-func (recvMsg *MessagePart) FreeMsg() error {
-	rc, err := C.zmq_msg_close(recvMsg.msg)
-	if rc == -1 {
+// Send multipart message to the socket
+func (s *Socket) SendMultipart(data [][]byte, flag SendFlag) error {
+	moreFlag := flag | SNDMORE
+	for _, v := range data[:len(data)-1] {
+		err := s.Send(v, moreFlag)
+		if err != nil {
+			return err
+		}
+	}
+	err := s.Send(data[len(data)-1], flag)
+	if err != nil {
 		return err
 	}
 	return nil
 }
 
+// Receive a multi part message from the socket
+func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
+	parts := make([][]byte, 0, 4)
+	msgs := make([]*ZmqMsg, 0, 4)
+	for {
+		msgPart, err := s.Recv(flag)
+		if err != nil {
+			// Close fetched message before returing error
+			for _, v := range msgs {
+				v.CloseMsg()
+			}
+			return nil, err
+		}
+		parts = append(parts, msgPart.Data)
+		msgs = append(msgs, msgPart.ZmqMsg)
+		if !msgPart.HasMore(){
+			break
+		}
+	}
+	msgMpart := &MessageMultipart{parts, msgs}
+	return msgMpart, nil
+}
+
 // Receive a message part from the socket
-// It is necessary to call FreeMsg on each MessagePart to avoid memory leak
+// It is necessary to call CloseMsg on each MessagePart to avoid memory leak
 // when the data is not needed anymore
-func (soc *Socket) Recv(flag SendFlag) (*MessagePart, error) {
+func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 	var msg C.zmq_msg_t
 	rc, err := C.zmq_msg_init(&msg)
 	if rc != 0 {
 		return nil, err
 	}
 	for {
-		rc, err = C.zmq_msg_recv(&msg, soc.s, 0)
+		rc, err = C.zmq_msg_recv(&msg, s.psocket, 0)
+		// Retry receive on an interrupted system call
 		if rc == -1 && C.zmq_errno() == C.int(C.EINTR) {
 			continue
 		}
@@ -151,6 +178,6 @@ func (soc *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 		break
 	}
 	data := buildSliceFromMsg(&msg)
-	recvMessage := &MessagePart{data, &msg}
+	recvMessage := &MessagePart{data, (*ZmqMsg)(&msg)}
 	return recvMessage, nil
 }

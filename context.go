@@ -15,22 +15,6 @@ type Context struct {
 	c unsafe.Pointer
 }
 
-type SocketType C.int
-
-const (
-	REQ    = SocketType(C.ZMQ_REQ)
-	REP    = SocketType(C.ZMQ_REP)
-	ROUTER = SocketType(C.ZMQ_ROUTER)
-	DEALER = SocketType(C.ZMQ_DEALER)
-	PULL   = SocketType(C.ZMQ_PULL)
-	PUSH   = SocketType(C.ZMQ_PUSH)
-	PUB    = SocketType(C.ZMQ_PUB)
-	SUB    = SocketType(C.ZMQ_SUB)
-	XSUB   = SocketType(C.ZMQ_XSUB)
-	XPUB   = SocketType(C.ZMQ_XPUB)
-	PAIR   = SocketType(C.ZMQ_PAIR)
-)
-
 // Create a new thread safe context
 func NewContext() (ctx *Context, err error) {
 	ctx = &Context{}
