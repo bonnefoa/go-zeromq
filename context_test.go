@@ -7,10 +7,11 @@ import (
 func TestContextCreateAndDestroy(t *testing.T) {
 	ctx, err := NewContext()
 	if err != nil {
-		t.Fatalf("Error on socket creation %v", err)
+		t.Fatal("Error on context creation", err)
 	}
 	err = ctx.Destroy()
 	if err != nil {
-		t.Fatalf("Error on socket destruction %v", err)
+		t.Fatal("Error on context destroy", err)
 	}
 }
+
