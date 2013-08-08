@@ -12,7 +12,6 @@ import (
 	"unsafe"
 )
 
-
 type ZmqMsg C.zmq_msg_t
 
 type MessageMultipart struct {
@@ -26,9 +25,9 @@ type MessagePart struct {
 }
 
 // Close all zmq messages to release data and memory
-func (m *MessageMultipart) CloseMsgs() error {
+func (m *MessageMultipart) Close() error {
 	for _, v := range m.msg {
-		err := v.CloseMsg()
+		err := v.Close()
 		if err != nil {
 			return err
 		}
@@ -37,7 +36,7 @@ func (m *MessageMultipart) CloseMsgs() error {
 }
 
 // Close zmq message to release data and memory
-func (m *ZmqMsg) CloseMsg() error {
+func (m *ZmqMsg) Close() error {
 	rc, err := C.zmq_msg_close((*C.zmq_msg_t)(m))
 	if rc == -1 {
 		return err

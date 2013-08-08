@@ -142,7 +142,7 @@ func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
 		if err != nil {
 			// Close fetched message before returing error
 			for _, v := range msgs {
-				v.CloseMsg()
+				v.Close()
 			}
 			return nil, err
 		}
