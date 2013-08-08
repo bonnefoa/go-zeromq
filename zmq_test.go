@@ -47,20 +47,17 @@ func (ctx *SocketSuite) TestSocketCreate(c *check.C) {
 }
 
 func (ctx *SocketSuite) TestSocketTcpBind(c *check.C) {
-	endpoint := "tcp://127.0.0.1:5555"
-
 	socket, err := ctx.NewSocket(ROUTER)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket creation"))
 	defer socket.Close()
 
-	err = socket.Bind(endpoint)
+	err = socket.Bind(TCP_ENDPOINT)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket bind"))
-	err = socket.Unbind(endpoint)
+	err = socket.Unbind(TCP_ENDPOINT)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket unbind"))
 }
 
 func (ctx *SocketSuite) TestSocketSend(c *check.C) {
-	endpoint := "tcp://127.0.0.1:9999"
 	data := []byte("test")
 
 	rep_socket, err := ctx.NewSocket(REP)
@@ -71,10 +68,10 @@ func (ctx *SocketSuite) TestSocketSend(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket creation"))
 	defer req_socket.Close()
 
-	err = rep_socket.Bind(endpoint)
+	err = rep_socket.Bind(TCP_ENDPOINT)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket bind"))
 
-	err = req_socket.Connect(endpoint)
+	err = req_socket.Connect(TCP_ENDPOINT)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket bind"))
 
 	err = req_socket.Send(data, 0)
@@ -90,9 +87,9 @@ func (ctx *SocketSuite) TestSocketSend(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Error on response receive"))
 	c.Assert(response.Data, check.DeepEquals, data)
 
-	err = req_socket.Disconnect(endpoint)
+	err = req_socket.Disconnect(TCP_ENDPOINT)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket disconnect"))
-	err = rep_socket.Unbind(endpoint)
+	err = rep_socket.Unbind(TCP_ENDPOINT)
 	c.Assert(err, check.IsNil, check.Commentf("Error on socket unbind"))
 }
 
@@ -110,7 +107,7 @@ func (ctx *SocketSuite) benchmarkSendReceive(c *check.C, sizeData int, endpoint 
 	if err != nil { panic(err) }
 
 	c.ResetTimer()
-	var rep *ReceivedMessage
+	var rep *MessagePart
 	for i := 0; i < c.N; i++ {
 		err := req_socket.Send(data, 0)
 		if err != nil {

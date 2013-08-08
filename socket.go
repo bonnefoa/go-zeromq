@@ -4,8 +4,6 @@ package zmq
 #cgo pkg-config: libzmq
 #include <zmq.h>
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
 */
 import "C"
 
@@ -14,7 +12,17 @@ import (
 	"unsafe"
 )
 
+type Socket struct {
+	s unsafe.Pointer
+}
+
+type MessagePart struct {
+	Data []byte
+	msg  *C.zmq_msg_t
+}
+
 type SocketType C.int
+type SendFlag C.int
 
 const (
 	REQ    = SocketType(C.ZMQ_REQ)
@@ -25,42 +33,10 @@ const (
 	PUSH   = SocketType(C.ZMQ_PUSH)
 )
 
-type SendFlag C.int
-
 const (
 	SNDMORE  = SendFlag(C.ZMQ_SNDMORE)
 	DONTWAIT = SendFlag(C.ZMQ_DONTWAIT)
 )
-
-type Context struct {
-	c unsafe.Pointer
-}
-
-type Socket struct {
-	s unsafe.Pointer
-}
-
-type ReceivedMessage struct {
-	Data []byte
-	msg  *C.zmq_msg_t
-}
-
-func NewContext() (ctx *Context, err error) {
-	ctx = &Context{}
-	ctx.c, err = C.zmq_ctx_new()
-	return ctx, err
-}
-
-func (ctx *Context) Destroy() error {
-	_, err := C.zmq_ctx_destroy(ctx.c)
-	return err
-}
-
-func (ctx *Context) NewSocket(socketType SocketType) (*Socket, error) {
-	s, err := C.zmq_socket(ctx.c, C.int(socketType))
-	socket := &Socket{s}
-	return socket, err
-}
 
 func (soc *Socket) Close() error {
 	_, err := C.zmq_close(soc.s)
@@ -137,7 +113,7 @@ func buildSliceFromMsg(msg *C.zmq_msg_t) []byte {
 	return *(*[]byte)(unsafe.Pointer(&x))
 }
 
-func (recvMsg *ReceivedMessage) FreeMsg() error {
+func (recvMsg *MessagePart) FreeMsg() error {
 	rc, err := C.zmq_msg_close(recvMsg.msg)
 	if rc == -1 {
 		return err
@@ -145,7 +121,7 @@ func (recvMsg *ReceivedMessage) FreeMsg() error {
 	return nil
 }
 
-func (soc *Socket) Recv(flag SendFlag) (*ReceivedMessage, error) {
+func (soc *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 	var msg C.zmq_msg_t
 	rc, err := C.zmq_msg_init(&msg)
 	if rc != 0 {
@@ -163,6 +139,6 @@ func (soc *Socket) Recv(flag SendFlag) (*ReceivedMessage, error) {
 		break
 	}
 	data := buildSliceFromMsg(&msg)
-	recvMessage := &ReceivedMessage{data, &msg}
+	recvMessage := &MessagePart{data, &msg}
 	return recvMessage, nil
 }
