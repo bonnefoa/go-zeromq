@@ -10,7 +10,6 @@ const INPROC_ENDPOINT = "inproc://test_proc"
 
 func TestCheck(t *testing.T) { check.TestingT(t) }
 
-var _ = check.Suite(&ContextSuite{})
 var _ = check.Suite(&SocketSuite{})
 
 type ContextSuite struct{}

@@ -30,20 +30,29 @@ const (
 func NewContext() (ctx *Context, err error) {
 	ctx = &Context{}
 	ctx.c, err = C.zmq_ctx_new()
-	return ctx, err
+	if ctx == nil {
+		return nil, err
+	}
+	return ctx, nil
 }
 
 // Destroy a context.
-// Don't forget to close all sockets before otherwise this call 
+// Don't forget to close all sockets before otherwise this call
 // will hang forever
 func (ctx *Context) Destroy() error {
-	_, err := C.zmq_ctx_destroy(ctx.c)
-	return err
+	rc, err := C.zmq_ctx_destroy(ctx.c)
+	if rc == -1 {
+		return err
+	}
+	return nil
 }
 
 // Create a new socket
 func (ctx *Context) NewSocket(socketType SocketType) (*Socket, error) {
 	s, err := C.zmq_socket(ctx.c, C.int(socketType))
 	socket := &Socket{s}
-	return socket, err
+	if s == nil {
+		return nil, err
+	}
+	return socket, nil
 }
