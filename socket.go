@@ -103,7 +103,7 @@ func (s *Socket) Send(data []byte, flag SendFlag) error {
 	// and improve performances
 	C.zmq_msg_init_data(&msg, pdata, sizeData, nil, nil)
 	for {
-		rc, err := C.zmq_msg_send(&msg, s.psocket, C.int(0))
+		rc, err := C.zmq_msg_send(&msg, s.psocket, C.int(flag))
 		// Retry send on an interrupted system call
 		if rc == -1 && C.zmq_errno() == C.int(C.EINTR) {
 			continue
