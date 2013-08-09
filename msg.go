@@ -15,8 +15,8 @@ import (
 type ZmqMsg C.zmq_msg_t
 
 type MessageMultipart struct {
+	parts []*MessagePart
 	Data [][]byte
-	msg  []*ZmqMsg
 }
 
 type MessagePart struct {
@@ -24,15 +24,38 @@ type MessagePart struct {
 	*ZmqMsg
 }
 
+func (m *MessageMultipart) aggregateData() {
+	m.Data = make([][]byte, len(m.parts))
+	for i, part := range m.parts {
+		m.Data[i] = part.Data
+	}
+}
+
 // Close all zmq messages to release data and memory
 func (m *MessageMultipart) Close() error {
-	for _, v := range m.msg {
-		err := v.Close()
-		if err != nil {
-			return err
+	var err error
+	for _, part := range m.parts {
+		cerr := part.Close()
+		if err == nil {
+			err = cerr
 		}
 	}
+	if err != nil {
+		return err
+	}
+
+
 	return nil
+}
+
+// Close zmq message and put back MessagePart to pool
+func (m *MessagePart) Close() error {
+	err := m.ZmqMsg.Close()
+	select {
+	case messagePartPool <- m:
+	default:
+	}
+	return err
 }
 
 // Close zmq message to release data and memory

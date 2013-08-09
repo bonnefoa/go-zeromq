@@ -135,26 +135,29 @@ func (s *Socket) SendMultipart(data [][]byte, flag SendFlag) error {
 
 // Receive a multi part message from the socket
 func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
-	parts := make([][]byte, 0, 4)
-	msgs := make([]*ZmqMsg, 0, 4)
+	msg := &MessageMultipart{}
+	msg.parts = make([]*MessagePart, 10)
+	i := 0
 	for {
 		msgPart, err := s.Recv(flag)
 		if err != nil {
 			// Close fetched message before returing error
-			for _, v := range msgs {
-				v.Close()
-			}
+			msg.Close()
 			return nil, err
 		}
-		parts = append(parts, msgPart.Data)
-		msgs = append(msgs, msgPart.ZmqMsg)
+		msg.parts[i] = msgPart
+		i += 1
 		if !msgPart.HasMore(){
 			break
 		}
 	}
-	msgMpart := &MessageMultipart{parts, msgs}
-	return msgMpart, nil
+	// Make slice iterable
+	msg.parts = msg.parts[:i]
+	msg.aggregateData()
+	return msg, nil
 }
+
+var messagePartPool = make(chan *MessagePart, 100)
 
 // Receive a message part from the socket
 // It is necessary to call CloseMsg on each MessagePart to avoid memory leak
@@ -178,6 +181,16 @@ func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 		break
 	}
 	data := buildSliceFromMsg(&msg)
-	recvMessage := &MessagePart{data, (*ZmqMsg)(&msg)}
-	return recvMessage, nil
+
+	var msgPart *MessagePart
+	select {
+	case msgPart = <-messagePartPool:
+	default:
+		msgPart = &MessagePart{}
+	}
+
+	msgPart.Data = data
+	msgPart.ZmqMsg = (*ZmqMsg)(&msg)
+
+	return msgPart, nil
 }
