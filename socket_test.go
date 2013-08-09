@@ -288,31 +288,27 @@ func Benchmark1MBSendReceiveInproc(b *testing.B) {
 	benchamrkSimplePart(b, 1e6, INPROC_ENDPOINT+"_1M")
 }
 
+func makeMultipartData(numParts int, sizeData int) [][]byte {
+	data := make([][]byte, numParts)
+	for i := 0; i < numParts; i++ {
+		data[i] = make([]byte, sizeData)
+	}
+	return data
+}
+
 func benchmarkMultipart(b *testing.B, numParts int, sizeData int, endpoint string) {
 	env := &Env{Tester: b, serverType: PULL, endpoint: endpoint, clientType: PUSH}
 	env.setupEnv()
 	defer env.destroyEnv()
 
-	data := make([][]byte, numParts)
-	for i := 0; i < numParts; i++ {
-		data[i] = make([]byte, sizeData)
-	}
+	data := makeMultipartData(numParts, sizeData)
 
 	b.ResetTimer()
 	var rep *MessageMultipart
 	for i := 0; i < b.N; i++ {
-		err := env.client.SendMultipart(data, 0)
-		if err != nil {
-			b.Fatal(err)
-		}
-		rep, err = env.server.RecvMultipart(0)
-		if err != nil {
-			b.Fatal(err)
-		}
-		err = rep.Close()
-		if err != nil {
-			b.Fatal(err)
-		}
+		env.client.SendMultipart(data, 0)
+		rep, _ = env.server.RecvMultipart(0)
+		rep.Close()
 	}
 	b.StopTimer()
 }

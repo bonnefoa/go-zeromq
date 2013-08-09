@@ -12,8 +12,9 @@ import (
 )
 
 type ContextOption C.int
+
 const (
-	IO_THREADS = C.ZMQ_IO_THREADS
+	IO_THREADS  = C.ZMQ_IO_THREADS
 	MAX_SOCKETS = C.ZMQ_MAX_SOCKETS
 )
 
@@ -52,6 +53,16 @@ func (ctx *Context) NewSocket(socketType SocketType) (*Socket, error) {
 	return socket, nil
 }
 
+func (ctx *Context) NewSocketChannel(socketType SocketType, endpoint string, buffer int) (*SocketChannel, error) {
+	sendChannel := make(chan [][]byte, buffer)
+	recvChannel := make(chan *MessageMultipart, buffer)
+	errChannel := make(chan error, buffer)
+	sc := &SocketChannel{SendChannel: sendChannel, RecvChannel: recvChannel, Context: ctx, Endpoint:endpoint,
+		SocketType:socketType, ErrChannel:errChannel}
+	err := sc.wireSocket()
+	return sc, err
+}
+
 // Get context option value
 func (ctx *Context) Get(option ContextOption) (int, error) {
 	rc, err := C.zmq_ctx_get(ctx.c, C.int(option))
@@ -70,4 +81,3 @@ func (ctx *Context) Set(option ContextOption, value int) error {
 	}
 	return nil
 }
-

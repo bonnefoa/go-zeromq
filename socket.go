@@ -32,6 +32,25 @@ const (
 	PAIR   = SocketType(C.ZMQ_PAIR)
 )
 
+func (socType SocketType) IsBind() bool {
+	switch socType {
+	case REP:
+		return true
+	case ROUTER:
+		return true
+	case DEALER:
+		return true
+	case PULL:
+		return true
+	case PUB:
+		return true
+	case XPUB:
+		return true
+	default:
+		return false
+	}
+}
+
 type SendFlag C.int
 
 const (
