@@ -9,6 +9,7 @@ import "C"
 
 import (
 	"unsafe"
+	"reflect"
 )
 
 type Socket struct {
@@ -231,13 +232,42 @@ const (
 	TCP_KEEPALIVE_INTVL     = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_INTVL)
 )
 
-func (s *Socket) GetIntOption(option SocketOptionInt) (int, error) {
-	var value int
-	sizet := C.size_t(unsafe.Sizeof(value))
-	pvalue := unsafe.Pointer(&value)
-	rc, err := C.zmq_getsockopt(s.psocket, C.int(option), pvalue, &sizet)
+func (s *Socket) getOption(option C.int, v interface{}) (int, error) {
+	value := reflect.ValueOf(v)
+	pvalue := unsafe.Pointer(value.Pointer())
+	size := C.size_t(unsafe.Sizeof(reflect.Indirect(value)))
+	rc, err := C.zmq_getsockopt(s.psocket, option, pvalue, &size)
 	if rc == -1 {
 		return -1, err
 	}
-	return value, nil
+	return int(size), nil
 }
+
+func (s *Socket) GetOptionInt(option SocketOptionInt) (int, error) {
+	var value int
+	_, err := s.getOption(C.int(option), &value)
+	return value, err
+}
+
+func (s *Socket) GetOptionUint64(option SocketOptionUint64) (uint64, error) {
+	var value uint64
+	_, err := s.getOption(C.int(option), &value)
+	return value, err
+}
+
+func (s *Socket) GetOptionInt64(option SocketOptionUint64) (int64, error) {
+	var value int64
+	_, err := s.getOption(C.int(option), &value)
+	return value, err
+}
+
+func (s *Socket) GetOptionString(option SocketOptionString) (string, error) {
+	var value [1024]byte
+	sizeString, err := s.getOption(C.int(option), &value)
+	if sizeString > 0 {
+		// Remove \x00 from zmq string
+		return string(value[:sizeString-1]), err
+	}
+	return "", nil
+}
+

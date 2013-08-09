@@ -148,13 +148,22 @@ func TestGetSocketOption(t *testing.T) {
 	env.setupEnv()
 	defer env.destroyEnv()
 
-	rc, err := env.server.GetIntOption(TYPE)
+	rc, err := env.server.GetOptionInt(TYPE)
 	if err != nil {
-		t.Fatal("Error on socket get", err)
+		t.Fatal("Error on socket type get", err)
 	}
 	if SocketType(rc) != PULL {
 		t.Fatal("Expected type to be PULL, got ", rc)
 	}
+
+	endpoint, err := env.server.GetOptionString(LAST_ENDPOINT)
+	if err != nil {
+		t.Fatal("Error on socket endpoint get", err)
+	}
+	if endpoint != TCP_ENDPOINT {
+		t.Fatalf("Expected last endpoint to be %q, got %q", TCP_ENDPOINT, endpoint)
+	}
+
 }
 
 func benchamrkSimplePart(b *testing.B, sizeData int, endpoint string) {
