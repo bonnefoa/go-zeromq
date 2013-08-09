@@ -199,7 +199,6 @@ func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 type SocketOptionInt C.int
 type SocketOptionUint64 C.int
 type SocketOptionInt64 C.int
-type SocketOptionBinary C.int
 type SocketOptionString C.int
 
 const (
@@ -208,7 +207,7 @@ const (
 	SNDHWM                  = SocketOptionInt(C.ZMQ_SNDHWM)
 	RCVHWM                  = SocketOptionInt(C.ZMQ_RCVHWM)
 	AFFINITY                = SocketOptionUint64(C.ZMQ_AFFINITY)
-	IDENTITY                = SocketOptionBinary(C.ZMQ_IDENTITY)
+	IDENTITY                = SocketOptionString(C.ZMQ_IDENTITY)
 	RATE                    = SocketOptionInt(C.ZMQ_RATE)
 	RECOVERY_IVL            = SocketOptionInt(C.ZMQ_RECOVERY_IVL)
 	SNDBUF                  = SocketOptionInt(C.ZMQ_SNDBUF)
@@ -230,40 +229,52 @@ const (
 	TCP_KEEPALIVE_IDLE      = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_IDLE)
 	TCP_KEEPALIVE_CNT       = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_CNT)
 	TCP_KEEPALIVE_INTVL     = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_INTVL)
+
+	SUBSCRIBE		= SocketOptionString(C.ZMQ_SUBSCRIBE)
+	UNSUBSCRIBE             = SocketOptionString(C.ZMQ_UNSUBSCRIBE)
+	ROUTER_MANDATORY        = SocketOptionInt(C.ZMQ_ROUTER_MANDATORY)
+	XPUB_VERBOSE            = SocketOptionInt(C.ZMQ_XPUB_VERBOSE)
 )
 
-func (s *Socket) getOption(option C.int, v interface{}) (int, error) {
+func (s *Socket) getOption(option C.int, v interface{}, size *C.size_t) error {
 	value := reflect.ValueOf(v)
 	pvalue := unsafe.Pointer(value.Pointer())
-	size := C.size_t(unsafe.Sizeof(reflect.Indirect(value)))
-	rc, err := C.zmq_getsockopt(s.psocket, option, pvalue, &size)
+	rc, err := C.zmq_getsockopt(s.psocket, option, pvalue, size)
 	if rc == -1 {
-		return -1, err
+		return err
 	}
-	return int(size), nil
+	return nil
 }
 
+// Get the value of a socket option as an int
 func (s *Socket) GetOptionInt(option SocketOptionInt) (int, error) {
 	var value int
-	_, err := s.getOption(C.int(option), &value)
+	size := C.size_t(unsafe.Sizeof(value))
+	err := s.getOption(C.int(option), &value, &size)
 	return value, err
 }
 
+// Get the value of a socket option as an uint64
 func (s *Socket) GetOptionUint64(option SocketOptionUint64) (uint64, error) {
 	var value uint64
-	_, err := s.getOption(C.int(option), &value)
+	size := C.size_t(unsafe.Sizeof(value))
+	err := s.getOption(C.int(option), &value, &size)
 	return value, err
 }
 
+// Get the value of a socket option as an int64
 func (s *Socket) GetOptionInt64(option SocketOptionUint64) (int64, error) {
 	var value int64
-	_, err := s.getOption(C.int(option), &value)
+	size := C.size_t(unsafe.Sizeof(value))
+	err := s.getOption(C.int(option), &value, &size)
 	return value, err
 }
 
+// Get the value of a socket option as a string
 func (s *Socket) GetOptionString(option SocketOptionString) (string, error) {
 	var value [1024]byte
-	sizeString, err := s.getOption(C.int(option), &value)
+	sizeString := C.size_t(unsafe.Sizeof(value))
+	err := s.getOption(C.int(option), &value, &sizeString)
 	if sizeString > 0 {
 		// Remove \x00 from zmq string
 		return string(value[:sizeString-1]), err
@@ -271,3 +282,43 @@ func (s *Socket) GetOptionString(option SocketOptionString) (string, error) {
 	return "", nil
 }
 
+func (s *Socket) setOption(option C.int, v interface{}, size C.size_t) error {
+	value := reflect.ValueOf(v)
+	pvalue := unsafe.Pointer(value.Pointer())
+	rc, err := C.zmq_setsockopt(s.psocket, option, pvalue, size)
+	if rc == -1 {
+		return err
+	}
+	return nil
+}
+
+// Set a int socket option to the given value
+func (s *Socket) SetOptionInt(option SocketOptionInt, value int) error {
+	val := C.int(value)
+	size := C.size_t(unsafe.Sizeof(val))
+	return s.setOption(C.int(option), &val, size)
+}
+
+// Set a int 64 socket option to the given value
+func (s *Socket) SetOptionInt64(option SocketOptionInt64, value int64) error {
+	size := C.size_t(unsafe.Sizeof(value))
+	return s.setOption(C.int(option), &value, size)
+}
+
+// Set a uint 64 socket option to the given value
+func (s *Socket) SetOptionUint64(option SocketOptionUint64, value uint64) error {
+	size := C.size_t(unsafe.Sizeof(value))
+	return s.setOption(C.int(option), &value, size)
+}
+
+// Set a string socket option to the given value. Can be nil
+func (s *Socket) SetOptionString(option SocketOptionString, value *string) error {
+	if value == nil {
+		return s.setOption(C.int(option), nil, 0)
+	}
+	size := C.size_t(len(*value))
+	cstr := C.CString(*value)
+	err := s.setOption(C.int(option), cstr, size)
+	C.free(unsafe.Pointer(cstr))
+	return err
+}
