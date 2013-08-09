@@ -26,3 +26,16 @@ func TestContextGet(t *testing.T) {
 	}
 	ctx.Destroy()
 }
+
+func TestContextSet(t *testing.T) {
+	ctx, _ := NewContext()
+	err := ctx.Set(IO_THREADS, 4)
+	if err != nil {
+		t.Fatal("Error on context set of IO_THREADS", err)
+	}
+	count, err := ctx.Get(IO_THREADS)
+	if count != 4 {
+		t.Fatalf("Expected IO_THREADS options to be 4, got %q (err was %q)", count, err)
+	}
+	ctx.Destroy()
+}

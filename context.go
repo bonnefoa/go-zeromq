@@ -61,3 +61,13 @@ func (ctx *Context) Get(option ContextOption) (int, error) {
 	}
 	return count, nil
 }
+
+// Set context option to given value
+func (ctx *Context) Set(option ContextOption, value int) error {
+	rc, err := C.zmq_ctx_set(ctx.c, C.int(option), C.int(value))
+	if rc == -1 {
+		return err
+	}
+	return nil
+}
+
