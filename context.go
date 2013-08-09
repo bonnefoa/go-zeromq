@@ -11,6 +11,12 @@ import (
 	"unsafe"
 )
 
+type ContextOption C.int
+const (
+	IO_THREADS = C.ZMQ_IO_THREADS
+	MAX_SOCKETS = C.ZMQ_MAX_SOCKETS
+)
+
 type Context struct {
 	c unsafe.Pointer
 }
@@ -44,4 +50,14 @@ func (ctx *Context) NewSocket(socketType SocketType) (*Socket, error) {
 		return nil, err
 	}
 	return socket, nil
+}
+
+// Get context option value
+func (ctx *Context) Get(option ContextOption) (int, error) {
+	rc, err := C.zmq_ctx_get(ctx.c, C.int(option))
+	count := int(rc)
+	if count == -1 {
+		return count, err
+	}
+	return count, nil
 }

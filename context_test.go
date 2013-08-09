@@ -15,3 +15,14 @@ func TestContextCreateAndDestroy(t *testing.T) {
 	}
 }
 
+func TestContextGet(t *testing.T) {
+	ctx, _ := NewContext()
+	rc, err := ctx.Get(IO_THREADS)
+	if err != nil {
+		t.Fatal("Error on context get of IO_THREADS", err)
+	}
+	if rc <= 0 {
+		t.Fatal("expected IO_THREADS to be > 0, got ", rc)
+	}
+	ctx.Destroy()
+}
