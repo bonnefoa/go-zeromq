@@ -29,7 +29,7 @@ type PollItem struct {
 	REvents PollEvent
 }
 
-// Build a zmq poll item from socket and
+// Build a zmq poll item from socket and Event
 func (p *PollItem) buildZmqPollItem() ZmqPollItem {
 	zmqItem := ZmqPollItem {
 		socket : p.Socket.psocket,
@@ -46,6 +46,7 @@ func (p PollItems) buildZmqPollItems() []ZmqPollItem {
 	return zmqItems
 }
 
+// Poll until timeout or until one or multiple polled events happens
 func (p PollItems) Poll(timeout time.Duration) (int, error) {
 	var msTimeout C.long
 	if timeout < 0 {
