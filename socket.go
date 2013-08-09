@@ -147,7 +147,7 @@ func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
 		}
 		msg.parts[i] = msgPart
 		i += 1
-		if !msgPart.HasMore(){
+		if !msgPart.HasMore() {
 			break
 		}
 	}
@@ -193,4 +193,51 @@ func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 	msgPart.ZmqMsg = (*ZmqMsg)(&msg)
 
 	return msgPart, nil
+}
+
+type SocketOptionInt C.int
+type SocketOptionUint64 C.int
+type SocketOptionInt64 C.int
+type SocketOptionBinary C.int
+type SocketOptionString C.int
+
+const (
+	TYPE                    = SocketOptionInt(C.ZMQ_TYPE)
+	RCVMORE                 = SocketOptionInt(C.ZMQ_RCVMORE)
+	SNDHWM                  = SocketOptionInt(C.ZMQ_SNDHWM)
+	RCVHWM                  = SocketOptionInt(C.ZMQ_RCVHWM)
+	AFFINITY                = SocketOptionUint64(C.ZMQ_AFFINITY)
+	IDENTITY                = SocketOptionBinary(C.ZMQ_IDENTITY)
+	RATE                    = SocketOptionInt(C.ZMQ_RATE)
+	RECOVERY_IVL            = SocketOptionInt(C.ZMQ_RECOVERY_IVL)
+	SNDBUF                  = SocketOptionInt(C.ZMQ_SNDBUF)
+	RCVBUF                  = SocketOptionInt(C.ZMQ_RCVBUF)
+	LINGER                  = SocketOptionInt(C.ZMQ_LINGER)
+	RECONNECT_IVL           = SocketOptionInt(C.ZMQ_RECONNECT_IVL)
+	RECONNECT_IVL_MAX       = SocketOptionInt(C.ZMQ_RECONNECT_IVL_MAX)
+	BACKLOG                 = SocketOptionInt(C.ZMQ_BACKLOG)
+	MAXMSGSIZE              = SocketOptionInt64(C.ZMQ_MAXMSGSIZE)
+	MULTICAST_HOPS          = SocketOptionInt(C.ZMQ_MULTICAST_HOPS)
+	RCVTIMEO                = SocketOptionInt(C.ZMQ_RCVTIMEO)
+	SNDTIMEO                = SocketOptionInt(C.ZMQ_SNDTIMEO)
+	IPV4ONLY                = SocketOptionInt(C.ZMQ_IPV4ONLY)
+	DELAY_ATTACH_ON_CONNECT = SocketOptionInt(C.ZMQ_DELAY_ATTACH_ON_CONNECT)
+	FD                      = SocketOptionInt(C.ZMQ_FD)
+	EVENTS                  = SocketOptionInt(C.ZMQ_EVENTS)
+	LAST_ENDPOINT           = SocketOptionString(C.ZMQ_LAST_ENDPOINT)
+	TCP_KEEPALIVE           = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE)
+	TCP_KEEPALIVE_IDLE      = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_IDLE)
+	TCP_KEEPALIVE_CNT       = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_CNT)
+	TCP_KEEPALIVE_INTVL     = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_INTVL)
+)
+
+func (s *Socket) GetIntOption(option SocketOptionInt) (int, error) {
+	var value int
+	sizet := C.size_t(unsafe.Sizeof(value))
+	pvalue := unsafe.Pointer(&value)
+	rc, err := C.zmq_getsockopt(s.psocket, C.int(option), pvalue, &sizet)
+	if rc == -1 {
+		return -1, err
+	}
+	return value, nil
 }
