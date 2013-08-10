@@ -49,6 +49,8 @@ func (p PollItems) buildZmqPollItems() []ZmqPollItem {
 // Poll until timeout or until one or multiple polled events happens
 func (p PollItems) Poll(timeout time.Duration) (int, error) {
 	var msTimeout C.long
+    var rc C.int
+    var err error
 	if timeout < 0 {
 		msTimeout = WAIT_FOREVER
 	} else {
@@ -56,11 +58,17 @@ func (p PollItems) Poll(timeout time.Duration) (int, error) {
 	}
 	sizeItems := C.int(len(p))
 	zmqItems := p.buildZmqPollItems()
-	rc, err := C.zmq_poll((*C.zmq_pollitem_t)(&zmqItems[0]), sizeItems, msTimeout)
+    for {
+        rc, err = C.zmq_poll((*C.zmq_pollitem_t)(&zmqItems[0]), sizeItems, msTimeout)
+		if rc == -1 && C.zmq_errno() == C.int(C.EINTR) {
+            continue
+        }
+        if rc == -1 {
+            return -1, err
+        }
+        break
+    }
 	count := int(rc)
-	if count == -1 {
-		return count, err
-	}
 	for i := range p {
 		p[i].REvents = PollEvent(zmqItems[i].revents)
 	}
