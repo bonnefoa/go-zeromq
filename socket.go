@@ -161,8 +161,6 @@ func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
 	for {
 		msgPart, err := s.Recv(flag)
 		if err != nil {
-			// Close fetched message before returing error
-			msg.Close()
 			return nil, err
 		}
 		msg.parts[i] = msgPart
