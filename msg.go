@@ -4,6 +4,7 @@ package zmq
 #cgo pkg-config: libzmq
 #include <zmq.h>
 #include <stdlib.h>
+#include <string.h>
 */
 import "C"
 
@@ -74,6 +75,15 @@ func (m *ZmqMsg) HasMore() bool {
 		return true
 	}
 	return false
+}
+
+// Get event of the given message
+func (m *ZmqMsg) GetEvent() *C.zmq_event_t {
+	var event C.zmq_event_t
+	sizeEvent := C.size_t(unsafe.Sizeof(event))
+	pdata := C.zmq_msg_data((*C.zmq_msg_t)(m))
+	C.memcpy(unsafe.Pointer(&event), pdata, sizeEvent)
+	return &event
 }
 
 // Build a byte slice with content pointing to the message data

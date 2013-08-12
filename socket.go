@@ -8,8 +8,8 @@ package zmq
 import "C"
 
 import (
-	"unsafe"
 	"reflect"
+	"unsafe"
 )
 
 type Socket struct {
@@ -247,10 +247,10 @@ const (
 	TCP_KEEPALIVE_CNT       = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_CNT)
 	TCP_KEEPALIVE_INTVL     = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_INTVL)
 
-	SUBSCRIBE		= SocketOptionString(C.ZMQ_SUBSCRIBE)
-	UNSUBSCRIBE             = SocketOptionString(C.ZMQ_UNSUBSCRIBE)
-	ROUTER_MANDATORY        = SocketOptionInt(C.ZMQ_ROUTER_MANDATORY)
-	XPUB_VERBOSE            = SocketOptionInt(C.ZMQ_XPUB_VERBOSE)
+	SUBSCRIBE        = SocketOptionString(C.ZMQ_SUBSCRIBE)
+	UNSUBSCRIBE      = SocketOptionString(C.ZMQ_UNSUBSCRIBE)
+	ROUTER_MANDATORY = SocketOptionInt(C.ZMQ_ROUTER_MANDATORY)
+	XPUB_VERBOSE     = SocketOptionInt(C.ZMQ_XPUB_VERBOSE)
 )
 
 func (s *Socket) getOption(option C.int, v interface{}, size *C.size_t) error {
@@ -338,4 +338,29 @@ func (s *Socket) SetOptionString(option SocketOptionString, value *string) error
 	err := s.setOption(C.int(option), cstr, size)
 	C.free(unsafe.Pointer(cstr))
 	return err
+}
+
+type SocketEvent C.int
+
+const (
+	EVENT_CONNECTED        = SocketEvent(C.ZMQ_EVENT_CONNECTED)
+	EVENT_CONNECT_DELAYED  = SocketEvent(C.ZMQ_EVENT_CONNECT_DELAYED)
+	EVENT_CONNECT_RETRIED = SocketEvent(C.ZMQ_EVENT_CONNECT_RETRIED)
+	EVENT_LISTENING        = SocketEvent(C.ZMQ_EVENT_LISTENING)
+	EVENT_BIND_FAILED      = SocketEvent(C.ZMQ_EVENT_BIND_FAILED)
+	EVENT_ACCEPTED         = SocketEvent(C.ZMQ_EVENT_ACCEPTED)
+	EVENT_ACCEPT_FAILED    = SocketEvent(C.ZMQ_EVENT_ACCEPT_FAILED)
+	EVENT_CLOSED           = SocketEvent(C.ZMQ_EVENT_CLOSED)
+	EVENT_CLOSE_FAILED     = SocketEvent(C.ZMQ_EVENT_CLOSE_FAILED)
+	EVENT_DISCONNECTED     = SocketEvent(C.ZMQ_EVENT_DISCONNECTED)
+	EVENT_ALL        = SocketEvent(C.ZMQ_EVENT_ALL)
+)
+
+func (s *Socket) Monitor(endpoint string, events SocketEvent) error {
+	cstr := C.CString(endpoint)
+	rc, err := C.zmq_socket_monitor(s.psocket, cstr, C.int(events))
+	if rc == -1 {
+		return err
+	}
+	return nil
 }

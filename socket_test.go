@@ -1,10 +1,13 @@
 package zmq
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
 )
+
+var _ = fmt.Print
 
 const TCP_ENDPOINT = "tcp://127.0.0.1:9999"
 const INPROC_ENDPOINT = "inproc://test_proc"
@@ -238,101 +241,44 @@ func TestSocketSubscribe(t *testing.T) {
 	}
 }
 
-func benchamrkSimplePart(b *testing.B, sizeData int, endpoint string) {
-	env := &Env{Tester: b, serverType: PULL, endpoint: endpoint, clientType: PUSH}
+func TestSocketMonitor(t *testing.T) {
+	env := &Env{Tester: t}
 	env.setupEnv()
 	defer env.destroyEnv()
+	monitorEndpoint := "inproc://monitor"
 
-	data := make([]byte, sizeData)
-
-	b.ResetTimer()
-	var rep *MessagePart
-	for i := 0; i < b.N; i++ {
-		err := env.client.Send(data, 0)
-		if err != nil {
-			b.Fatal(err)
-		}
-		rep, err = env.server.Recv(0)
-		if err != nil {
-			b.Fatal(err)
-		}
-		err = rep.Close()
-		if err != nil {
-			b.Fatal(err)
-		}
+	soc, err := env.NewSocket(PUSH)
+	if err != nil {
+		t.Fatalf("Error when creating new push socket", err)
 	}
-	b.StopTimer()
-}
+	soc.Monitor(monitorEndpoint, EVENT_ALL)
 
-func Benchmark1BSendReceiveTcp(b *testing.B) {
-	benchamrkSimplePart(b, 1, TCP_ENDPOINT)
-}
-
-func Benchmark1KBSendReceiveTcp(b *testing.B) {
-	benchamrkSimplePart(b, 1e3, TCP_ENDPOINT)
-}
-
-func Benchmark1MBSendReceiveTcp(b *testing.B) {
-	benchamrkSimplePart(b, 1e6, TCP_ENDPOINT)
-}
-
-func Benchmark1BSendReceiveInproc(b *testing.B) {
-	benchamrkSimplePart(b, 1, INPROC_ENDPOINT+"_1b")
-}
-
-func Benchmark1KBSendReceiveInproc(b *testing.B) {
-	benchamrkSimplePart(b, 1e3, INPROC_ENDPOINT+"_1K")
-}
-
-func Benchmark1MBSendReceiveInproc(b *testing.B) {
-	benchamrkSimplePart(b, 1e6, INPROC_ENDPOINT+"_1M")
-}
-
-func makeMultipartData(numParts int, sizeData int) [][]byte {
-	data := make([][]byte, numParts)
-	for i := 0; i < numParts; i++ {
-		data[i] = make([]byte, sizeData)
+	monitorSoc, err := env.NewSocket(PAIR)
+	if err != nil {
+		t.Fatalf("Error when creating new monitor pair socket", err)
 	}
-	return data
-}
+	monitorSoc.Connect(monitorEndpoint)
 
-func benchmarkMultipart(b *testing.B, numParts int, sizeData int, endpoint string) {
-	env := &Env{Tester: b, serverType: PULL, endpoint: endpoint, clientType: PUSH}
-	env.setupEnv()
-	defer env.destroyEnv()
-
-	data := makeMultipartData(numParts, sizeData)
-
-	b.ResetTimer()
-	var rep *MessageMultipart
-	for i := 0; i < b.N; i++ {
-		env.client.SendMultipart(data, 0)
-		rep, _ = env.server.RecvMultipart(0)
-		rep.Close()
+	soc.Bind(TCP_ENDPOINT)
+	res, err := monitorSoc.Recv(0)
+	if err != nil {
+		t.Fatalf("Error when receiving monitor state", err)
 	}
-	b.StopTimer()
-}
+	event := res.GetEvent()
+	if SocketEvent(event.event) != EVENT_LISTENING {
+		t.Fatalf("Expected event %d, got %d", EVENT_CONNECTED, event.event)
+	}
 
-func Benchmark10BMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1, TCP_ENDPOINT)
-}
+	soc.Close()
 
-func Benchmark10KBMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e3, TCP_ENDPOINT)
-}
+	res, err = monitorSoc.Recv(0)
+	if err != nil {
+		t.Fatalf("Error when receiving monitor state", err)
+	}
+	event = res.GetEvent()
+	if SocketEvent(event.event) != EVENT_CLOSED {
+		t.Fatalf("Expected event %d, got %d", EVENT_CLOSED, event.event)
+	}
 
-func Benchmark10MBMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e6, TCP_ENDPOINT)
-}
-
-func Benchmark10BMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1, INPROC_ENDPOINT+"_1b")
-}
-
-func Benchmark10KBMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e3, INPROC_ENDPOINT+"_1K")
-}
-
-func Benchmark10MBMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e6, INPROC_ENDPOINT+"_1M")
+	monitorSoc.Close()
 }
