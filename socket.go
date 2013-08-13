@@ -113,8 +113,14 @@ func (s *Socket) Disconnect(address string) error {
 
 // Send data to the socket
 func (s *Socket) Send(data []byte, flag SendFlag) error {
+	var pdata unsafe.Pointer
 	var msg C.zmq_msg_t
-	pdata := unsafe.Pointer(&data[0])
+	if len(data) == 0 {
+		pdata = unsafe.Pointer(&data)
+	} else {
+		pdata = unsafe.Pointer(&data[0])
+	}
+
 	sizeData := C.size_t(len(data))
 	// The slice is reused as an unsafe pointer to avoid copy
 	// There might be a problem if go gc collect data slice

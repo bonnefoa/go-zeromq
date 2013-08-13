@@ -132,7 +132,7 @@ func TestMultipart(t *testing.T) {
 	env.setupEnv()
 	defer env.destroyEnv()
 
-	data := [][]byte{[]byte("test"), []byte("test2"), []byte("test3")}
+	data := [][]byte{[]byte("test"), []byte(""), []byte("test3")}
 	err := env.client.SendMultipart(data, 0)
 	if err != nil {
 		t.Fatal("Error on multipart send", err)
