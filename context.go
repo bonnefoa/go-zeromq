@@ -11,18 +11,23 @@ import (
 	"unsafe"
 )
 
+// ContextOption identifies gettable and settable options
+// from context
 type ContextOption C.int
 
 const (
-	IO_THREADS  = C.ZMQ_IO_THREADS
-	MAX_SOCKETS = C.ZMQ_MAX_SOCKETS
+    // IoThreads allows to get and set the number of threads for a context
+	IoThreads  ContextOption = C.ZMQ_IO_THREADS
+    // MaxSockets allows to get and set the number of sockets for a context
+	MaxSockets ContextOption = C.ZMQ_MAX_SOCKETS
 )
 
+// Context identify the zeromq context
 type Context struct {
 	c unsafe.Pointer
 }
 
-// Create a new thread safe context
+// NewContext creates a new thread safe context
 func NewContext() (ctx *Context, err error) {
 	ctx = &Context{}
 	ctx.c, err = C.zmq_ctx_new()
@@ -43,7 +48,7 @@ func (ctx *Context) Destroy() error {
 	return nil
 }
 
-// Create a new socket
+// NewSocket Creates a new socket
 func (ctx *Context) NewSocket(socketType SocketType) (*Socket, error) {
 	s, err := C.zmq_socket(ctx.c, C.int(socketType))
 	socket := &Socket{s}

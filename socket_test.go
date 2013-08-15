@@ -1,16 +1,13 @@
 package zmq
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 )
 
-var _ = fmt.Print
-
-const TCP_ENDPOINT = "tcp://127.0.0.1:9999"
-const INPROC_ENDPOINT = "inproc://test_proc"
+const TcpEndpoint = "tcp://127.0.0.1:9999"
+const InprocEndpoint = "inproc://test_proc"
 
 type Tester interface {
 	Fatal(args ...interface{})
@@ -82,18 +79,18 @@ func TestSocketTcpBind(t *testing.T) {
 	env := &Env{Tester: t, serverType: ROUTER}
 	env.setupEnv()
 	defer env.destroyEnv()
-	err := env.server.Bind(TCP_ENDPOINT)
+	err := env.server.Bind(TcpEndpoint)
 	if err != nil {
 		t.Fatal("Error on socket bind", err)
 	}
-	err = env.server.Unbind(TCP_ENDPOINT)
+	err = env.server.Unbind(TcpEndpoint)
 	if err != nil {
 		t.Fatal("Error on socket unbind", err)
 	}
 }
 
 func TestSocketSend(t *testing.T) {
-	env := &Env{Tester: t, serverType: REP, endpoint: TCP_ENDPOINT, clientType: REQ}
+	env := &Env{Tester: t, serverType: REP, endpoint: TcpEndpoint, clientType: Req}
 	env.setupEnv()
 	defer env.destroyEnv()
 	data := []byte("test")
@@ -128,7 +125,7 @@ func TestSocketSend(t *testing.T) {
 }
 
 func TestMultipart(t *testing.T) {
-	env := &Env{Tester: t, serverType: PULL, endpoint: TCP_ENDPOINT, clientType: PUSH}
+	env := &Env{Tester: t, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
 	env.setupEnv()
 	defer env.destroyEnv()
 
@@ -148,7 +145,7 @@ func TestMultipart(t *testing.T) {
 }
 
 func TestGetSocketOption(t *testing.T) {
-	env := &Env{Tester: t, serverType: PULL, endpoint: TCP_ENDPOINT, clientType: PUSH}
+	env := &Env{Tester: t, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
 	env.setupEnv()
 	defer env.destroyEnv()
 	rc, err := env.server.GetOptionInt(TYPE)
@@ -162,13 +159,13 @@ func TestGetSocketOption(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error on socket endpoint get", err)
 	}
-	if endpoint != TCP_ENDPOINT {
-		t.Fatalf("Expected last endpoint to be %q, got %q", TCP_ENDPOINT, endpoint)
+	if endpoint != TcpEndpoint {
+		t.Fatalf("Expected last endpoint to be %q, got %q", TcpEndpoint, endpoint)
 	}
 }
 
 func TestSetSocketOption(t *testing.T) {
-	env := &Env{Tester: t, serverType: PULL, endpoint: TCP_ENDPOINT, clientType: PUSH}
+	env := &Env{Tester: t, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
 	env.setupEnv()
 	defer env.destroyEnv()
 
@@ -197,7 +194,7 @@ func TestSetSocketOption(t *testing.T) {
 }
 
 func TestSocketSubscribe(t *testing.T) {
-	env := &Env{Tester: t, serverType: PUB, endpoint: TCP_ENDPOINT, clientType: SUB}
+	env := &Env{Tester: t, serverType: PUB, endpoint: TcpEndpoint, clientType: SUB}
 	env.setupEnv()
 	defer env.destroyEnv()
 	totoData := []byte("toto mess")
@@ -249,20 +246,20 @@ func TestSocketMonitor(t *testing.T) {
 
 	soc, err := env.NewSocket(PUSH)
 	if err != nil {
-		t.Fatalf("Error when creating new push socket", err)
+		t.Fatal("Error when creating new push socket", err)
 	}
 	soc.Monitor(monitorEndpoint, EVENT_ALL)
 
 	monitorSoc, err := env.NewSocket(PAIR)
 	if err != nil {
-		t.Fatalf("Error when creating new monitor pair socket", err)
+		t.Fatal("Error when creating new monitor pair socket", err)
 	}
 	monitorSoc.Connect(monitorEndpoint)
 
-	soc.Bind(TCP_ENDPOINT)
+	soc.Bind(TcpEndpoint)
 	res, err := monitorSoc.Recv(0)
 	if err != nil {
-		t.Fatalf("Error when receiving monitor state", err)
+		t.Fatal("Error when receiving monitor state", err)
 	}
 	event := res.GetEvent()
 	if SocketEvent(event.event) != EVENT_LISTENING {
@@ -273,7 +270,7 @@ func TestSocketMonitor(t *testing.T) {
 
 	res, err = monitorSoc.Recv(0)
 	if err != nil {
-		t.Fatalf("Error when receiving monitor state", err)
+		t.Fatal("Error when receiving monitor state", err)
 	}
 	event = res.GetEvent()
 	if SocketEvent(event.event) != EVENT_CLOSED {

@@ -6,7 +6,7 @@ import (
 )
 
 func TestPollSocket(t *testing.T) {
-	env := &Env{Tester: t, serverType: PULL, endpoint: TCP_ENDPOINT, clientType: PUSH}
+	env := &Env{Tester: t, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
 	env.setupEnv()
 	defer env.destroyEnv()
 
@@ -28,7 +28,7 @@ func TestPollSocket(t *testing.T) {
 }
 
 func BenchmarkPollSocket(b *testing.B) {
-	env := &Env{Tester: b, serverType: PULL, endpoint: TCP_ENDPOINT, clientType: PUSH}
+	env := &Env{Tester: b, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
 	env.setupEnv()
 	defer env.destroyEnv()
 

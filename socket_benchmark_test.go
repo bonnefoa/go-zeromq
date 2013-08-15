@@ -31,27 +31,27 @@ func benchamrkSimplePart(b *testing.B, sizeData int, endpoint string) {
 }
 
 func Benchmark1BSendReceiveTcp(b *testing.B) {
-	benchamrkSimplePart(b, 1, TCP_ENDPOINT)
+	benchamrkSimplePart(b, 1, TcpEndpoint)
 }
 
 func Benchmark1KBSendReceiveTcp(b *testing.B) {
-	benchamrkSimplePart(b, 1e3, TCP_ENDPOINT)
+	benchamrkSimplePart(b, 1e3, TcpEndpoint)
 }
 
 func Benchmark1MBSendReceiveTcp(b *testing.B) {
-	benchamrkSimplePart(b, 1e6, TCP_ENDPOINT)
+	benchamrkSimplePart(b, 1e6, TcpEndpoint)
 }
 
 func Benchmark1BSendReceiveInproc(b *testing.B) {
-	benchamrkSimplePart(b, 1, INPROC_ENDPOINT+"_1b")
+	benchamrkSimplePart(b, 1, InprocEndpoint+"_1b")
 }
 
 func Benchmark1KBSendReceiveInproc(b *testing.B) {
-	benchamrkSimplePart(b, 1e3, INPROC_ENDPOINT+"_1K")
+	benchamrkSimplePart(b, 1e3, InprocEndpoint+"_1K")
 }
 
 func Benchmark1MBSendReceiveInproc(b *testing.B) {
-	benchamrkSimplePart(b, 1e6, INPROC_ENDPOINT+"_1M")
+	benchamrkSimplePart(b, 1e6, InprocEndpoint+"_1M")
 }
 
 func makeMultipartData(numParts int, sizeData int) [][]byte {
@@ -80,25 +80,25 @@ func benchmarkMultipart(b *testing.B, numParts int, sizeData int, endpoint strin
 }
 
 func Benchmark10BMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1, TCP_ENDPOINT)
+	benchmarkMultipart(b, 10, 1, TcpEndpoint)
 }
 
 func Benchmark10KBMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e3, TCP_ENDPOINT)
+	benchmarkMultipart(b, 10, 1e3, TcpEndpoint)
 }
 
 func Benchmark10MBMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e6, TCP_ENDPOINT)
+	benchmarkMultipart(b, 10, 1e6, TcpEndpoint)
 }
 
 func Benchmark10BMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1, INPROC_ENDPOINT+"_1b")
+	benchmarkMultipart(b, 10, 1, InprocEndpoint+"_1b")
 }
 
 func Benchmark10KBMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e3, INPROC_ENDPOINT+"_1K")
+	benchmarkMultipart(b, 10, 1e3, InprocEndpoint+"_1K")
 }
 
 func Benchmark10MBMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e6, INPROC_ENDPOINT+"_1M")
+	benchmarkMultipart(b, 10, 1e6, InprocEndpoint+"_1M")
 }

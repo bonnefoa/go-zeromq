@@ -13,16 +13,18 @@ import (
 	"unsafe"
 )
 
-type ZmqMsg C.zmq_msg_t
+type zmqMsg C.zmq_msg_t
 
+// MessageMultipart represents a multipart frame message
 type MessageMultipart struct {
 	parts []*MessagePart
 	Data [][]byte
 }
 
+// MessagePart represents a single message frame
 type MessagePart struct {
 	Data []byte
-	*ZmqMsg
+	*zmqMsg
 }
 
 func (m *MessageMultipart) aggregateData() {
@@ -51,7 +53,7 @@ func (m *MessageMultipart) Close() error {
 
 // Close zmq message and put back MessagePart to pool
 func (m *MessagePart) Close() error {
-	err := m.ZmqMsg.Close()
+	err := m.zmqMsg.Close()
 	select {
 	case messagePartPool <- m:
 	default:
@@ -60,7 +62,7 @@ func (m *MessagePart) Close() error {
 }
 
 // Close zmq message to release data and memory
-func (m *ZmqMsg) Close() error {
+func (m *zmqMsg) Close() error {
 	rc, err := C.zmq_msg_close((*C.zmq_msg_t)(m))
 	if rc == -1 {
 		return err
@@ -69,7 +71,7 @@ func (m *ZmqMsg) Close() error {
 }
 
 // Check if there are more message to fetch
-func (m *ZmqMsg) HasMore() bool {
+func (m *zmqMsg) HasMore() bool {
 	cint := C.zmq_msg_more((*C.zmq_msg_t)(m))
 	if cint == C.int(1) {
 		return true
@@ -78,7 +80,7 @@ func (m *ZmqMsg) HasMore() bool {
 }
 
 // Get event of the given message
-func (m *ZmqMsg) GetEvent() *C.zmq_event_t {
+func (m *zmqMsg) GetEvent() *C.zmq_event_t {
 	var event C.zmq_event_t
 	sizeEvent := C.size_t(unsafe.Sizeof(event))
 	pdata := C.zmq_msg_data((*C.zmq_msg_t)(m))

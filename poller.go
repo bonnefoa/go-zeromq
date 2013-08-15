@@ -11,35 +11,39 @@ import (
 	"time"
 )
 
-type PollEvent C.short
+type pollEvent C.short
 
-const WAIT_FOREVER = C.long(-1)
+const waitForever = C.long(-1)
 
+// Available polling events
 const (
-	POLLIN = PollEvent(C.ZMQ_POLLIN)
-	POLLOUT = PollEvent(C.ZMQ_POLLOUT)
-	POLLERR = PollEvent(C.ZMQ_POLLERR)
+	Pollin = pollEvent(C.ZMQ_POLLIN)
+	Pollout = pollEvent(C.ZMQ_POLLOUT)
+	Pollerr = pollEvent(C.ZMQ_POLLERR)
 )
 
-type ZmqPollItem C.zmq_pollitem_t
+type zmqPollItem C.zmq_pollitem_t
+
+// PollItems agregates multiple poll events
 type PollItems []*PollItem
+// PollItem identifies a poll events to wait on a socket
 type PollItem struct {
 	Socket *Socket
-	Events PollEvent
-	REvents PollEvent
+	Events pollEvent
+	REvents pollEvent
 }
 
 // Build a zmq poll item from socket and Event
-func (p *PollItem) buildZmqPollItem() ZmqPollItem {
-	zmqItem := ZmqPollItem {
+func (p *PollItem) buildZmqPollItem() zmqPollItem {
+	zmqItem := zmqPollItem {
 		socket : p.Socket.psocket,
 		events : C.short(p.Events),
 	}
 	return zmqItem
 }
 
-func (p PollItems) buildZmqPollItems() []ZmqPollItem {
-	zmqItems := make([]ZmqPollItem, len(p))
+func (p PollItems) buildZmqPollItems() []zmqPollItem {
+	zmqItems := make([]zmqPollItem, len(p))
 	for i, v := range p {
 		zmqItems[i] = v.buildZmqPollItem()
 	}
@@ -52,7 +56,7 @@ func (p PollItems) Poll(timeout time.Duration) (int, error) {
     var rc C.int
     var err error
 	if timeout < 0 {
-		msTimeout = WAIT_FOREVER
+		msTimeout = waitForever
 	} else {
 		msTimeout = C.long(timeout.Nanoseconds() / 1e6)
 	}
@@ -70,7 +74,7 @@ func (p PollItems) Poll(timeout time.Duration) (int, error) {
     }
 	count := int(rc)
 	for i := range p {
-		p[i].REvents = PollEvent(zmqItems[i].revents)
+		p[i].REvents = pollEvent(zmqItems[i].revents)
 	}
 	return count, nil
 }

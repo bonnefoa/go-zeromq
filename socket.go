@@ -12,50 +12,36 @@ import (
 	"unsafe"
 )
 
+// Socket represents a zero mq socket
 type Socket struct {
 	psocket unsafe.Pointer
 }
 
+// SocketType identifies the type of the socket
 type SocketType C.int
 
+// Bindings to available socket types
 const (
-	REQ    = SocketType(C.ZMQ_REQ)
-	REP    = SocketType(C.ZMQ_REP)
-	ROUTER = SocketType(C.ZMQ_ROUTER)
-	DEALER = SocketType(C.ZMQ_DEALER)
-	PULL   = SocketType(C.ZMQ_PULL)
-	PUSH   = SocketType(C.ZMQ_PUSH)
-	PUB    = SocketType(C.ZMQ_PUB)
-	SUB    = SocketType(C.ZMQ_SUB)
-	XSUB   = SocketType(C.ZMQ_XSUB)
-	XPUB   = SocketType(C.ZMQ_XPUB)
-	PAIR   = SocketType(C.ZMQ_PAIR)
+	Req    = SocketType(C.ZMQ_REQ)
+	Rep    = SocketType(C.ZMQ_REP)
+	Router = SocketType(C.ZMQ_ROUTER)
+	Dealer = SocketType(C.ZMQ_DEALER)
+	Pull   = SocketType(C.ZMQ_PULL)
+	Push   = SocketType(C.ZMQ_PUSH)
+	Pub    = SocketType(C.ZMQ_PUB)
+	Sub    = SocketType(C.ZMQ_SUB)
+	Xsub   = SocketType(C.ZMQ_XSUB)
+	Xpub   = SocketType(C.ZMQ_XPUB)
+	Pair   = SocketType(C.ZMQ_PAIR)
 )
 
-func (socType SocketType) IsBind() bool {
-	switch socType {
-	case REP:
-		return true
-	case ROUTER:
-		return true
-	case DEALER:
-		return true
-	case PULL:
-		return true
-	case PUB:
-		return true
-	case XPUB:
-		return true
-	default:
-		return false
-	}
-}
-
+// SendFlag identifies the flags passed to zeromq send command
 type SendFlag C.int
 
+// Bindings to available send flags
 const (
-	SNDMORE  = SendFlag(C.ZMQ_SNDMORE)
-	DONTWAIT = SendFlag(C.ZMQ_DONTWAIT)
+	SndMore  = SendFlag(C.ZMQ_SNDMORE)
+	DontWait = SendFlag(C.ZMQ_DONTWAIT)
 )
 
 // Close 0mq socket.
@@ -143,9 +129,9 @@ func (s *Socket) Send(data []byte, flag SendFlag) error {
 	return nil
 }
 
-// Send multipart message to the socket
+// SendMultipart sends a message with on or several frames to the socket
 func (s *Socket) SendMultipart(data [][]byte, flag SendFlag) error {
-	moreFlag := flag | SNDMORE
+	moreFlag := flag | SndMore
 	for _, v := range data[:len(data)-1] {
 		err := s.Send(v, moreFlag)
 		if err != nil {
@@ -159,7 +145,7 @@ func (s *Socket) SendMultipart(data [][]byte, flag SendFlag) error {
 	return nil
 }
 
-// Receive a multi part message from the socket
+// RecvMultipart receives a multi part message from the socket
 func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
 	msg := &MessageMultipart{}
 	msg.parts = make([]*MessagePart, 10)
@@ -183,7 +169,7 @@ func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
 
 var messagePartPool = make(chan *MessagePart, 100)
 
-// Receive a message part from the socket
+// Recv receives a message part from the socket
 // It is necessary to call CloseMsg on each MessagePart to avoid memory leak
 // when the data is not needed anymore
 func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
@@ -214,49 +200,54 @@ func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 	}
 
 	msgPart.Data = data
-	msgPart.ZmqMsg = (*ZmqMsg)(&msg)
+	msgPart.zmqMsg = (*zmqMsg)(&msg)
 
 	return msgPart, nil
 }
 
+// SocketOptionInt identifies socket option which returns int value
 type SocketOptionInt C.int
+// SocketOptionUint64 identifies socket option which returns uint64 value
 type SocketOptionUint64 C.int
+// SocketOptionInt64 identifies socket option which returns int64 value
 type SocketOptionInt64 C.int
+// SocketOptionString identifies socket option which returns string value
 type SocketOptionString C.int
 
+// Bindings to socket options
 const (
-	TYPE                    = SocketOptionInt(C.ZMQ_TYPE)
-	RCVMORE                 = SocketOptionInt(C.ZMQ_RCVMORE)
-	SNDHWM                  = SocketOptionInt(C.ZMQ_SNDHWM)
-	RCVHWM                  = SocketOptionInt(C.ZMQ_RCVHWM)
-	AFFINITY                = SocketOptionUint64(C.ZMQ_AFFINITY)
-	IDENTITY                = SocketOptionString(C.ZMQ_IDENTITY)
-	RATE                    = SocketOptionInt(C.ZMQ_RATE)
-	RECOVERY_IVL            = SocketOptionInt(C.ZMQ_RECOVERY_IVL)
-	SNDBUF                  = SocketOptionInt(C.ZMQ_SNDBUF)
-	RCVBUF                  = SocketOptionInt(C.ZMQ_RCVBUF)
-	LINGER                  = SocketOptionInt(C.ZMQ_LINGER)
-	RECONNECT_IVL           = SocketOptionInt(C.ZMQ_RECONNECT_IVL)
-	RECONNECT_IVL_MAX       = SocketOptionInt(C.ZMQ_RECONNECT_IVL_MAX)
-	BACKLOG                 = SocketOptionInt(C.ZMQ_BACKLOG)
-	MAXMSGSIZE              = SocketOptionInt64(C.ZMQ_MAXMSGSIZE)
-	MULTICAST_HOPS          = SocketOptionInt(C.ZMQ_MULTICAST_HOPS)
-	RCVTIMEO                = SocketOptionInt(C.ZMQ_RCVTIMEO)
-	SNDTIMEO                = SocketOptionInt(C.ZMQ_SNDTIMEO)
-	IPV4ONLY                = SocketOptionInt(C.ZMQ_IPV4ONLY)
-	DELAY_ATTACH_ON_CONNECT = SocketOptionInt(C.ZMQ_DELAY_ATTACH_ON_CONNECT)
-	FD                      = SocketOptionInt(C.ZMQ_FD)
-	EVENTS                  = SocketOptionInt(C.ZMQ_EVENTS)
-	LAST_ENDPOINT           = SocketOptionString(C.ZMQ_LAST_ENDPOINT)
-	TCP_KEEPALIVE           = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE)
-	TCP_KEEPALIVE_IDLE      = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_IDLE)
-	TCP_KEEPALIVE_CNT       = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_CNT)
-	TCP_KEEPALIVE_INTVL     = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_INTVL)
+	Type                 = SocketOptionInt(C.ZMQ_TYPE)
+	Rcvmore              = SocketOptionInt(C.ZMQ_RCVMORE)
+	Sndhwm               = SocketOptionInt(C.ZMQ_SNDHWM)
+	Rcvhwm               = SocketOptionInt(C.ZMQ_RCVHWM)
+	Affinity             = SocketOptionUint64(C.ZMQ_AFFINITY)
+	Identity             = SocketOptionString(C.ZMQ_IDENTITY)
+	Rate                 = SocketOptionInt(C.ZMQ_RATE)
+	RecoveryIvl          = SocketOptionInt(C.ZMQ_RECOVERY_IVL)
+	Sndbuf               = SocketOptionInt(C.ZMQ_SNDBUF)
+	Rcvbuf               = SocketOptionInt(C.ZMQ_RCVBUF)
+	Linger               = SocketOptionInt(C.ZMQ_LINGER)
+	ReconnectIvl         = SocketOptionInt(C.ZMQ_RECONNECT_IVL)
+	ReconnectIvlMax      = SocketOptionInt(C.ZMQ_RECONNECT_IVL_MAX)
+	Backlog              = SocketOptionInt(C.ZMQ_BACKLOG)
+	Maxmsgsize           = SocketOptionInt64(C.ZMQ_MAXMSGSIZE)
+	MulticastHops        = SocketOptionInt(C.ZMQ_MULTICAST_HOPS)
+	Rcvtimeo             = SocketOptionInt(C.ZMQ_RCVTIMEO)
+	Sndtimeo             = SocketOptionInt(C.ZMQ_SNDTIMEO)
+	Ipv4only             = SocketOptionInt(C.ZMQ_IPV4ONLY)
+	DelayAttachOnConnect = SocketOptionInt(C.ZMQ_DELAY_ATTACH_ON_CONNECT)
+	Fd                   = SocketOptionInt(C.ZMQ_FD)
+	Events               = SocketOptionInt(C.ZMQ_EVENTS)
+	LastEndpoint         = SocketOptionString(C.ZMQ_LAST_ENDPOINT)
+	TcpKeepalive         = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE)
+	TcpKeepaliveIdle     = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_IDLE)
+	TcpKeepaliveCnt      = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_CNT)
+	TcpKeepaliveIntvl    = SocketOptionInt(C.ZMQ_TCP_KEEPALIVE_INTVL)
 
-	SUBSCRIBE        = SocketOptionString(C.ZMQ_SUBSCRIBE)
-	UNSUBSCRIBE      = SocketOptionString(C.ZMQ_UNSUBSCRIBE)
-	ROUTER_MANDATORY = SocketOptionInt(C.ZMQ_ROUTER_MANDATORY)
-	XPUB_VERBOSE     = SocketOptionInt(C.ZMQ_XPUB_VERBOSE)
+	Subscribe       = SocketOptionString(C.ZMQ_SUBSCRIBE)
+	Unsubscribe     = SocketOptionString(C.ZMQ_UNSUBSCRIBE)
+	RouterMandatory = SocketOptionInt(C.ZMQ_ROUTER_MANDATORY)
+	XpubVerbose     = SocketOptionInt(C.ZMQ_XPUB_VERBOSE)
 )
 
 func (s *Socket) getOption(option C.int, v interface{}, size *C.size_t) error {
@@ -269,7 +260,7 @@ func (s *Socket) getOption(option C.int, v interface{}, size *C.size_t) error {
 	return nil
 }
 
-// Get the value of a socket option as an int
+// GetOptionInt gets the value of a socket option as an int
 func (s *Socket) GetOptionInt(option SocketOptionInt) (int, error) {
 	var value int
 	size := C.size_t(unsafe.Sizeof(value))
@@ -277,7 +268,7 @@ func (s *Socket) GetOptionInt(option SocketOptionInt) (int, error) {
 	return value, err
 }
 
-// Get the value of a socket option as an uint64
+// GetOptionUint64 gets the value of a socket option as an uint64
 func (s *Socket) GetOptionUint64(option SocketOptionUint64) (uint64, error) {
 	var value uint64
 	size := C.size_t(unsafe.Sizeof(value))
@@ -285,7 +276,7 @@ func (s *Socket) GetOptionUint64(option SocketOptionUint64) (uint64, error) {
 	return value, err
 }
 
-// Get the value of a socket option as an int64
+// GetOptionInt64 gets the value of a socket option as an int64
 func (s *Socket) GetOptionInt64(option SocketOptionUint64) (int64, error) {
 	var value int64
 	size := C.size_t(unsafe.Sizeof(value))
@@ -293,7 +284,7 @@ func (s *Socket) GetOptionInt64(option SocketOptionUint64) (int64, error) {
 	return value, err
 }
 
-// Get the value of a socket option as a string
+// GetOptionString gets the value of a socket option as a string
 func (s *Socket) GetOptionString(option SocketOptionString) (string, error) {
 	var value [1024]byte
 	sizeString := C.size_t(unsafe.Sizeof(value))
@@ -315,26 +306,26 @@ func (s *Socket) setOption(option C.int, v interface{}, size C.size_t) error {
 	return nil
 }
 
-// Set a int socket option to the given value
+// SetOptionInt sets a int socket option to the given value
 func (s *Socket) SetOptionInt(option SocketOptionInt, value int) error {
 	val := C.int(value)
 	size := C.size_t(unsafe.Sizeof(val))
 	return s.setOption(C.int(option), &val, size)
 }
 
-// Set a int 64 socket option to the given value
+// SetOptionInt64 sets a int 64 socket option to the given value
 func (s *Socket) SetOptionInt64(option SocketOptionInt64, value int64) error {
 	size := C.size_t(unsafe.Sizeof(value))
 	return s.setOption(C.int(option), &value, size)
 }
 
-// Set a uint 64 socket option to the given value
+// SetOptionUint64 sets a uint 64 socket option to the given value
 func (s *Socket) SetOptionUint64(option SocketOptionUint64, value uint64) error {
 	size := C.size_t(unsafe.Sizeof(value))
 	return s.setOption(C.int(option), &value, size)
 }
 
-// Set a string socket option to the given value. Can be nil
+// SetOptionString sets a string socket option to the given value. Can be nil
 func (s *Socket) SetOptionString(option SocketOptionString, value *string) error {
 	if value == nil {
 		return s.setOption(C.int(option), nil, 0)
@@ -346,22 +337,25 @@ func (s *Socket) SetOptionString(option SocketOptionString, value *string) error
 	return err
 }
 
+// SocketEvent identifies socket events available
 type SocketEvent C.int
 
+// Bindings to socket events
 const (
-	EVENT_CONNECTED        = SocketEvent(C.ZMQ_EVENT_CONNECTED)
-	EVENT_CONNECT_DELAYED  = SocketEvent(C.ZMQ_EVENT_CONNECT_DELAYED)
-	EVENT_CONNECT_RETRIED = SocketEvent(C.ZMQ_EVENT_CONNECT_RETRIED)
-	EVENT_LISTENING        = SocketEvent(C.ZMQ_EVENT_LISTENING)
-	EVENT_BIND_FAILED      = SocketEvent(C.ZMQ_EVENT_BIND_FAILED)
-	EVENT_ACCEPTED         = SocketEvent(C.ZMQ_EVENT_ACCEPTED)
-	EVENT_ACCEPT_FAILED    = SocketEvent(C.ZMQ_EVENT_ACCEPT_FAILED)
-	EVENT_CLOSED           = SocketEvent(C.ZMQ_EVENT_CLOSED)
-	EVENT_CLOSE_FAILED     = SocketEvent(C.ZMQ_EVENT_CLOSE_FAILED)
-	EVENT_DISCONNECTED     = SocketEvent(C.ZMQ_EVENT_DISCONNECTED)
-	EVENT_ALL        = SocketEvent(C.ZMQ_EVENT_ALL)
+	EventConnected        = SocketEvent(C.ZMQ_EVENT_CONNECTED)
+	EventConnectDelayed  = SocketEvent(C.ZMQ_EVENT_CONNECT_DELAYED)
+	EventConnectRetried = SocketEvent(C.ZMQ_EVENT_CONNECT_RETRIED)
+	EventListening        = SocketEvent(C.ZMQ_EVENT_LISTENING)
+	EventBindFailed      = SocketEvent(C.ZMQ_EVENT_BIND_FAILED)
+	EventAccepted         = SocketEvent(C.ZMQ_EVENT_ACCEPTED)
+	EventAcceptFailed    = SocketEvent(C.ZMQ_EVENT_ACCEPT_FAILED)
+	EventClosed           = SocketEvent(C.ZMQ_EVENT_CLOSED)
+	EventCloseFailed     = SocketEvent(C.ZMQ_EVENT_CLOSE_FAILED)
+	EventDisconnected     = SocketEvent(C.ZMQ_EVENT_DISCONNECTED)
+	EventAll              = SocketEvent(C.ZMQ_EVENT_ALL)
 )
 
+// Monitor binds event to the socket
 func (s *Socket) Monitor(endpoint string, events SocketEvent) error {
 	cstr := C.CString(endpoint)
 	rc, err := C.zmq_socket_monitor(s.psocket, cstr, C.int(events))
