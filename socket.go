@@ -148,14 +148,14 @@ func (s *Socket) SendMultipart(data [][]byte, flag SendFlag) error {
 // RecvMultipart receives a multi part message from the socket
 func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
 	msg := &MessageMultipart{}
-	msg.parts = make([]*MessagePart, 10)
+	msg.parts = make([]*MessagePart, 0, 10)
 	i := 0
 	for {
 		msgPart, err := s.Recv(flag)
 		if err != nil {
 			return nil, err
 		}
-		msg.parts[i] = msgPart
+		msg.parts = append(msg.parts, msgPart)
 		i += 1
 		if !msgPart.HasMore() {
 			break
