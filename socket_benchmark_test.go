@@ -5,7 +5,7 @@ import (
 )
 
 func benchamrkSimplePart(b *testing.B, sizeData int, endpoint string) {
-	env := &Env{Tester: b, serverType: PULL, endpoint: endpoint, clientType: PUSH}
+	env := &Env{Tester: b, serverType: Pull, endpoint: endpoint, clientType: Push}
 	env.setupEnv()
 	defer env.destroyEnv()
 
@@ -63,7 +63,7 @@ func makeMultipartData(numParts int, sizeData int) [][]byte {
 }
 
 func benchmarkMultipart(b *testing.B, numParts int, sizeData int, endpoint string) {
-	env := &Env{Tester: b, serverType: PULL, endpoint: endpoint, clientType: PUSH}
+	env := &Env{Tester: b, serverType: Pull, endpoint: endpoint, clientType: Push}
 	env.setupEnv()
 	defer env.destroyEnv()
 

@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+    "fmt"
+    "bytes"
 )
 
 const TcpEndpoint = "tcp://127.0.0.1:9999"
@@ -76,7 +78,7 @@ func (env *Env) destroyEnv() {
 }
 
 func TestSocketTcpBind(t *testing.T) {
-	env := &Env{Tester: t, serverType: ROUTER}
+	env := &Env{Tester: t, serverType: Router}
 	env.setupEnv()
 	defer env.destroyEnv()
 	err := env.server.Bind(TcpEndpoint)
@@ -90,7 +92,7 @@ func TestSocketTcpBind(t *testing.T) {
 }
 
 func TestSocketSend(t *testing.T) {
-	env := &Env{Tester: t, serverType: REP, endpoint: TcpEndpoint, clientType: Req}
+	env := &Env{Tester: t, serverType: Rep, endpoint: TcpEndpoint, clientType: Req}
 	env.setupEnv()
 	defer env.destroyEnv()
 	data := []byte("test")
@@ -125,7 +127,7 @@ func TestSocketSend(t *testing.T) {
 }
 
 func TestMultipart(t *testing.T) {
-	env := &Env{Tester: t, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
+	env := &Env{Tester: t, serverType: Pull, endpoint: TcpEndpoint, clientType: Push}
 	env.setupEnv()
 	defer env.destroyEnv()
 
@@ -144,18 +146,42 @@ func TestMultipart(t *testing.T) {
 	}
 }
 
-func TestGetSocketOption(t *testing.T) {
-	env := &Env{Tester: t, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
+func TestSendBigMessage(t *testing.T) {
+	env := &Env{Tester: t, serverType: Pull, endpoint: TcpEndpoint, clientType: Push}
 	env.setupEnv()
 	defer env.destroyEnv()
-	rc, err := env.server.GetOptionInt(TYPE)
+
+    lstData := make([][]byte, 90000)
+    for i := range lstData {
+        lstData[i] = []byte(fmt.Sprintf("key_%d", i))
+    }
+    data := [][]byte{bytes.Join(lstData, []byte(" "))}
+	err := env.client.SendMultipart(data, 0)
+	if err != nil {
+		t.Fatal("Error on multipart send", err)
+	}
+	rep, err := env.server.RecvMultipart(0)
+	if err != nil {
+		t.Fatal("Error on multipart receive", err)
+	}
+	defer rep.Close()
+	if !reflect.DeepEqual(rep.Data, data) {
+		t.Fatalf("Multipart Receive %q, expected %q", rep.Data, data)
+	}
+}
+
+func TestGetSocketOption(t *testing.T) {
+	env := &Env{Tester: t, serverType: Pull, endpoint: TcpEndpoint, clientType: Push}
+	env.setupEnv()
+	defer env.destroyEnv()
+	rc, err := env.server.GetOptionInt(Type)
 	if err != nil {
 		t.Fatal("Error on socket type get", err)
 	}
-	if SocketType(rc) != PULL {
-		t.Fatal("Expected type to be PULL, got ", rc)
+	if SocketType(rc) != Pull {
+		t.Fatal("Expected type to be Pull, got ", rc)
 	}
-	endpoint, err := env.server.GetOptionString(LAST_ENDPOINT)
+	endpoint, err := env.server.GetOptionString(LastEndpoint)
 	if err != nil {
 		t.Fatal("Error on socket endpoint get", err)
 	}
@@ -165,26 +191,26 @@ func TestGetSocketOption(t *testing.T) {
 }
 
 func TestSetSocketOption(t *testing.T) {
-	env := &Env{Tester: t, serverType: PULL, endpoint: TcpEndpoint, clientType: PUSH}
+	env := &Env{Tester: t, serverType: Pull, endpoint: TcpEndpoint, clientType: Push}
 	env.setupEnv()
 	defer env.destroyEnv()
 
-	err := env.server.SetOptionInt(RATE, 1500)
+	err := env.server.SetOptionInt(Rate, 1500)
 	if err != nil {
 		t.Fatal("Error on socket rate set", err)
 	}
-	rate, err := env.server.GetOptionInt(RATE)
+	rate, err := env.server.GetOptionInt(Rate)
 	if err != nil {
 		t.Fatal("Error on socket rate get", err)
 	}
 	if rate != 1500 {
 		t.Fatal("Expected rate to be 1500, got ", rate)
 	}
-	err = env.server.SetOptionUint64(AFFINITY, 1)
+	err = env.server.SetOptionUint64(Affinity, 1)
 	if err != nil {
 		t.Fatal("Error on socket affinity set", err)
 	}
-	affinity, err := env.server.GetOptionUint64(AFFINITY)
+	affinity, err := env.server.GetOptionUint64(Affinity)
 	if err != nil {
 		t.Fatal("Error on socket affinity get", err)
 	}
@@ -194,14 +220,14 @@ func TestSetSocketOption(t *testing.T) {
 }
 
 func TestSocketSubscribe(t *testing.T) {
-	env := &Env{Tester: t, serverType: PUB, endpoint: TcpEndpoint, clientType: SUB}
+	env := &Env{Tester: t, serverType: Pub, endpoint: TcpEndpoint, clientType: Sub}
 	env.setupEnv()
 	defer env.destroyEnv()
 	totoData := []byte("toto mess")
 	testData := []byte("test mess")
 	testTopic := "test"
 	totoTopic := "toto"
-	err := env.client.SetOptionString(SUBSCRIBE, &testTopic)
+	err := env.client.SetOptionString(Subscribe, &testTopic)
 	<-time.After(time.Millisecond)
 	if err != nil {
 		t.Fatal("Error on socket subscribe, got", err)
@@ -215,11 +241,11 @@ func TestSocketSubscribe(t *testing.T) {
 	if !reflect.DeepEqual(response.Data, testData) {
 		t.Fatal("Expected message 'test mess', got ", response.Data)
 	}
-	err = env.client.SetOptionString(UNSUBSCRIBE, &testTopic)
+	err = env.client.SetOptionString(Unsubscribe, &testTopic)
 	if err != nil {
 		t.Fatal("Error on socket unsubscribe, got", err)
 	}
-	err = env.client.SetOptionString(SUBSCRIBE, &totoTopic)
+	err = env.client.SetOptionString(Subscribe, &totoTopic)
 	if err != nil {
 		t.Fatal("Error on socket subscribe, got", err)
 	}
@@ -244,13 +270,13 @@ func TestSocketMonitor(t *testing.T) {
 	defer env.destroyEnv()
 	monitorEndpoint := "inproc://monitor"
 
-	soc, err := env.NewSocket(PUSH)
+	soc, err := env.NewSocket(Push)
 	if err != nil {
 		t.Fatal("Error when creating new push socket", err)
 	}
-	soc.Monitor(monitorEndpoint, EVENT_ALL)
+	soc.Monitor(monitorEndpoint, EventAll)
 
-	monitorSoc, err := env.NewSocket(PAIR)
+	monitorSoc, err := env.NewSocket(Pair)
 	if err != nil {
 		t.Fatal("Error when creating new monitor pair socket", err)
 	}
@@ -262,8 +288,8 @@ func TestSocketMonitor(t *testing.T) {
 		t.Fatal("Error when receiving monitor state", err)
 	}
 	event := res.GetEvent()
-	if SocketEvent(event.event) != EVENT_LISTENING {
-		t.Fatalf("Expected event %d, got %d", EVENT_CONNECTED, event.event)
+	if SocketEvent(event.event) != EventListening {
+		t.Fatalf("Expected event %d, got %d", EventConnected, event.event)
 	}
 
 	soc.Close()
@@ -273,8 +299,8 @@ func TestSocketMonitor(t *testing.T) {
 		t.Fatal("Error when receiving monitor state", err)
 	}
 	event = res.GetEvent()
-	if SocketEvent(event.event) != EVENT_CLOSED {
-		t.Fatalf("Expected event %d, got %d", EVENT_CLOSED, event.event)
+	if SocketEvent(event.event) != EventClosed {
+		t.Fatalf("Expected event %d, got %d", EventClosed, event.event)
 	}
 
 	monitorSoc.Close()
