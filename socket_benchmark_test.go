@@ -2,6 +2,7 @@ package zmq
 
 import (
 	"testing"
+    "sync"
 )
 
 func benchamrkSimplePart(b *testing.B, sizeData int, endpoint string) {
@@ -62,43 +63,108 @@ func makeMultipartData(numParts int, sizeData int) [][]byte {
 	return data
 }
 
-func benchmarkMultipart(b *testing.B, numParts int, sizeData int, endpoint string) {
+func benchmarkMultipartPullPush(b *testing.B, numParts int, sizeData int, endpoint string) {
 	env := &Env{Tester: b, serverType: Pull, endpoint: endpoint, clientType: Push}
 	env.setupEnv()
 	defer env.destroyEnv()
 
 	data := makeMultipartData(numParts, sizeData)
+    wg := &sync.WaitGroup{}
+    wg.Add(1)
+
+    go func() {
+        pollReceive := &PollItem{Socket: env.server, Events: Pollin}
+        pollers := PollItems{pollReceive}
+        for {
+            _, err := pollers.Poll(-1)
+            if err != nil {
+                wg.Done()
+                return
+            }
+            rep, err := env.server.RecvMultipart(0)
+            if err != nil {
+                wg.Done()
+                return
+            }
+            rep.Close()
+        }
+    }()
 
 	b.ResetTimer()
-	var rep *MessageMultipart
 	for i := 0; i < b.N; i++ {
 		env.client.SendMultipart(data, 0)
-		rep, _ = env.server.RecvMultipart(0)
-		rep.Close()
 	}
+    env.server.Close()
+    wg.Wait()
 	b.StopTimer()
 }
 
+func Benchmark1x10BMultipartTcp(b *testing.B) {
+	benchmarkMultipartPullPush(b, 1, 10, TcpEndpoint)
+}
+
 func Benchmark10BMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1, TcpEndpoint)
+	benchmarkMultipartPullPush(b, 10, 1, TcpEndpoint)
 }
 
 func Benchmark10KBMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e3, TcpEndpoint)
+	benchmarkMultipartPullPush(b, 10, 1e3, TcpEndpoint)
 }
 
 func Benchmark10MBMultipartTcp(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e6, TcpEndpoint)
+	benchmarkMultipartPullPush(b, 10, 1e6, TcpEndpoint)
 }
 
 func Benchmark10BMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1, InprocEndpoint+"_1b")
+	benchmarkMultipartPullPush(b, 10, 1, InprocEndpoint+"_1b")
 }
 
 func Benchmark10KBMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e3, InprocEndpoint+"_1K")
+	benchmarkMultipartPullPush(b, 10, 1e3, InprocEndpoint+"_1K")
 }
 
 func Benchmark10MBMultipartInproc(b *testing.B) {
-	benchmarkMultipart(b, 10, 1e6, InprocEndpoint+"_1M")
+	benchmarkMultipartPullPush(b, 10, 1e6, InprocEndpoint+"_1M")
+}
+
+
+
+func BenchmarkMultipartRouter(b *testing.B) {
+	env := &Env{Tester: b, serverType: Router, endpoint: TcpEndpoint, clientType: Req}
+	env.setupEnv()
+	defer env.destroyEnv()
+
+	data := makeMultipartData(2, 10)
+    wg := &sync.WaitGroup{}
+    wg.Add(1)
+
+    go func() {
+        defer wg.Done()
+        pollReceive := &PollItem{Socket: env.server, Events: Pollin}
+        pollers := PollItems{pollReceive}
+        for {
+            _, err := pollers.Poll(-1)
+            if err != nil {
+                return
+            }
+            rep, err := env.server.RecvMultipart(0)
+            if err != nil {
+                return
+            }
+            err = env.server.SendMultipart(rep.Data, DontWait)
+            if err != nil {
+                return
+            }
+            rep.Close()
+        }
+    }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		env.client.SendMultipart(data, 0)
+        env.client.RecvMultipart(0)
+	}
+    env.server.Close()
+    wg.Wait()
+	b.StopTimer()
 }
