@@ -10,6 +10,7 @@ import "C"
 import (
 	"reflect"
 	"unsafe"
+    "runtime"
 )
 
 // Socket represents a zero mq socket
@@ -167,8 +168,6 @@ func (s *Socket) RecvMultipart(flag SendFlag) (*MessageMultipart, error) {
 	return msg, nil
 }
 
-var messagePartPool = make(chan *MessagePart, 100)
-
 // Recv receives a message part from the socket
 // It is necessary to call CloseMsg on each MessagePart to avoid memory leak
 // when the data is not needed anymore
@@ -192,15 +191,12 @@ func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 	}
 	data := buildSliceFromMsg(&msg)
 
-	var msgPart *MessagePart
-	select {
-	case msgPart = <-messagePartPool:
-	default:
-		msgPart = &MessagePart{}
-	}
+    msgPart := &MessagePart{}
 
 	msgPart.Data = data
-	msgPart.zmqMsg = (*zmqMsg)(&msg)
+    zmqMsgPtr := (*zmqMsg)(&msg)
+	msgPart.zmqMsg = zmqMsgPtr
+    runtime.SetFinalizer(zmqMsgPtr, (*zmqMsg).Close)
 
 	return msgPart, nil
 }

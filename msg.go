@@ -10,6 +10,7 @@ import "C"
 
 import (
 	"reflect"
+	"runtime"
 	"unsafe"
 )
 
@@ -18,7 +19,7 @@ type zmqMsg C.zmq_msg_t
 // MessageMultipart represents a multipart frame message
 type MessageMultipart struct {
 	parts []*MessagePart
-	Data [][]byte
+	Data  [][]byte
 }
 
 // MessagePart represents a single message frame
@@ -47,22 +48,17 @@ func (m *MessageMultipart) Close() error {
 		return err
 	}
 
-
 	return nil
 }
 
 // Close zmq message and put back MessagePart to pool
 func (m *MessagePart) Close() error {
-	err := m.zmqMsg.Close()
-	select {
-	case messagePartPool <- m:
-	default:
-	}
-	return err
+	return m.zmqMsg.Close()
 }
 
 // Close zmq message to release data and memory
 func (m *zmqMsg) Close() error {
+	runtime.SetFinalizer(m, nil)
 	rc, err := C.zmq_msg_close((*C.zmq_msg_t)(m))
 	if rc == -1 {
 		return err

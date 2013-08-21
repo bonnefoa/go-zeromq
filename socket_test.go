@@ -1,11 +1,11 @@
 package zmq
 
 import (
+	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
-    "fmt"
-    "bytes"
 )
 
 const TcpEndpoint = "tcp://127.0.0.1:9999"
@@ -18,7 +18,7 @@ type Tester interface {
 
 type Env struct {
 	*Context
-	client     *Socket
+	client *Socket
 
 	server     *Socket
 	endpoint   string
@@ -38,14 +38,14 @@ func (env *Env) setupSocket(tp SocketType, soc **Socket, endpoint string, isServ
 	}
 	if isServer {
 		err = (*soc).Bind(endpoint)
-        if err != nil {
-            env.Fatalf("Error on socket bind. endpoint %q, err %q", endpoint, err)
-        }
+		if err != nil {
+			env.Fatalf("Error on socket bind. endpoint %q, err %q", endpoint, err)
+		}
 	} else {
 		err = (*soc).Connect(endpoint)
-        if err != nil {
-            env.Fatalf("Error on socket connect. endpoint %q, err %q", endpoint, err)
-        }
+		if err != nil {
+			env.Fatalf("Error on socket connect. endpoint %q, err %q", endpoint, err)
+		}
 	}
 }
 
@@ -84,13 +84,13 @@ func (env *Env) destroyClient() {
 }
 
 func (env *Env) setupEnv() {
-    env.setupServer()
-    env.setupClient()
+	env.setupServer()
+	env.setupClient()
 }
 
 func (env *Env) destroyEnv() {
-    env.destroyServer()
-    env.destroyClient()
+	env.destroyServer()
+	env.destroyClient()
 }
 
 func TestSocketTcpBind(t *testing.T) {
@@ -119,7 +119,6 @@ func TestSocketSend(t *testing.T) {
 	}
 	// Server receive request
 	response, err := env.server.Recv(0)
-	defer response.Close()
 	if err != nil {
 		t.Fatal("Error on server request receive", err)
 	}
@@ -133,7 +132,6 @@ func TestSocketSend(t *testing.T) {
 	}
 	// client receive response
 	response, err = env.client.Recv(0)
-	defer response.Close()
 	if err != nil {
 		t.Fatal("Error on client response receive", err)
 	}
@@ -156,7 +154,6 @@ func TestMultipart(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error on multipart receive", err)
 	}
-	defer rep.Close()
 	if !reflect.DeepEqual(rep.Data, data) {
 		t.Fatalf("Multipart Receive %q, expected %q", rep.Data, data)
 	}
@@ -167,11 +164,11 @@ func TestSendBigMessage(t *testing.T) {
 	env.setupEnv()
 	defer env.destroyEnv()
 
-    lstData := make([][]byte, 90000)
-    for i := range lstData {
-        lstData[i] = []byte(fmt.Sprintf("key_%d", i))
-    }
-    data := [][]byte{bytes.Join(lstData, []byte(" "))}
+	lstData := make([][]byte, 90000)
+	for i := range lstData {
+		lstData[i] = []byte(fmt.Sprintf("key_%d", i))
+	}
+	data := [][]byte{bytes.Join(lstData, []byte(" "))}
 	err := env.client.SendMultipart(data, 0)
 	if err != nil {
 		t.Fatal("Error on multipart send", err)
@@ -180,7 +177,6 @@ func TestSendBigMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error on multipart receive", err)
 	}
-	defer rep.Close()
 	if !reflect.DeepEqual(rep.Data, data) {
 		t.Fatalf("Multipart Receive %q, expected %q", rep.Data, data)
 	}
