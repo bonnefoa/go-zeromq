@@ -64,38 +64,33 @@ func makeMultipartData(numParts int, sizeData int) [][]byte {
 }
 
 func benchmarkMultipartPullPush(b *testing.B, numParts int, sizeData int, endpoint string) {
-	env := &Env{Tester: b, serverType: Pull, endpoint: endpoint, clientType: Push}
-	env.setupEnv()
-	defer env.destroyEnv()
-
-	data := makeMultipartData(numParts, sizeData)
+    env := &Env{Tester: b, serverType: Pull, endpoint: endpoint, clientType: Push}
+	env.setupServer()
+	defer env.destroyServer()
     wg := &sync.WaitGroup{}
     wg.Add(1)
 
     go func() {
-        pollReceive := &PollItem{Socket: env.server, Events: Pollin}
-        pollers := PollItems{pollReceive}
-        for {
-            _, err := pollers.Poll(-1)
+        data := makeMultipartData(numParts, sizeData)
+        env.setupClient()
+        defer env.destroyClient()
+        for i := 0; i < b.N; i++ {
+            err := env.client.SendMultipart(data, 0)
             if err != nil {
-                wg.Done()
-                return
+                env.Fatalf("Err on receive %q", env)
             }
-            rep, err := env.server.RecvMultipart(0)
-            if err != nil {
-                wg.Done()
-                return
-            }
-            rep.Close()
         }
+        wg.Wait()
     }()
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env.client.SendMultipart(data, 0)
+        rep, err := env.server.RecvMultipart(0)
+        if err != nil {
+            env.Fatalf("Err on receive %q", env)
+        }
+        rep.Close()
 	}
-    env.server.Close()
-    wg.Wait()
+    wg.Done()
 	b.StopTimer()
 }
 
@@ -127,44 +122,41 @@ func Benchmark10MBMultipartInproc(b *testing.B) {
 	benchmarkMultipartPullPush(b, 10, 1e6, InprocEndpoint+"_1M")
 }
 
-
-
 func BenchmarkMultipartRouter(b *testing.B) {
 	env := &Env{Tester: b, serverType: Router, endpoint: TcpEndpoint, clientType: Req}
-	env.setupEnv()
-	defer env.destroyEnv()
 
-	data := makeMultipartData(2, 10)
+    env.setupServer()
+    defer env.destroyServer()
+
     wg := &sync.WaitGroup{}
     wg.Add(1)
 
     go func() {
-        defer wg.Done()
-        pollReceive := &PollItem{Socket: env.server, Events: Pollin}
-        pollers := PollItems{pollReceive}
-        for {
-            _, err := pollers.Poll(-1)
-            if err != nil {
-                return
-            }
-            rep, err := env.server.RecvMultipart(0)
-            if err != nil {
-                return
-            }
-            err = env.server.SendMultipart(rep.Data, DontWait)
-            if err != nil {
-                return
+        data := makeMultipartData(2, 10)
+        env.setupClient()
+        defer env.destroyClient()
+        for i := 0; i < b.N; i++ {
+            env.client.SendMultipart(data, 0)
+            rep, err := env.client.RecvMultipart(0)
+            if err != nil{
+                env.Fatal(err)
             }
             rep.Close()
         }
+        wg.Wait()
     }()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env.client.SendMultipart(data, 0)
-        env.client.RecvMultipart(0)
+            rep, err := env.server.RecvMultipart(0)
+            if err != nil{
+                env.Fatal(err)
+            }
+            err = env.server.SendMultipart(rep.Data, 0)
+            if err != nil{
+                env.Fatal(err)
+            }
 	}
-    env.server.Close()
-    wg.Wait()
+    wg.Done()
 	b.StopTimer()
 }

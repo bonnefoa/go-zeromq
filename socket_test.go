@@ -18,52 +18,58 @@ type Tester interface {
 
 type Env struct {
 	*Context
-	server     *Socket
 	client     *Socket
+
+	server     *Socket
 	endpoint   string
 	serverType SocketType
 	clientType SocketType
 	Tester
 }
 
-func (env *Env) setupSocket(tp SocketType, soc **Socket, isServer bool) {
+func (env *Env) setupSocket(tp SocketType, soc **Socket, endpoint string, isServer bool) {
 	var err error
-	if tp == 0 {
-		return
-	}
 	*soc, err = env.NewSocket(tp)
 	if err != nil {
 		env.Fatal("Error on input socket creation", err)
 	}
-	if env.endpoint == "" {
+	if endpoint == "" {
 		return
 	}
 	if isServer {
-		err = (*soc).Bind(env.endpoint)
+		err = (*soc).Bind(endpoint)
+        if err != nil {
+            env.Fatalf("Error on socket bind. endpoint %q, err %q", endpoint, err)
+        }
 	} else {
-		err = (*soc).Connect(env.endpoint)
-	}
-	if err != nil {
-		env.Fatal("Error on socket bind", err)
+		err = (*soc).Connect(endpoint)
+        if err != nil {
+            env.Fatalf("Error on socket connect. endpoint %q, err %q", endpoint, err)
+        }
 	}
 }
 
-func (env *Env) setupEnv() {
+func (env *Env) setupServer() {
 	var err error
 	env.Context, err = NewContext()
 	if err != nil {
 		env.Fatal("Error on context creation", err)
 	}
-
-	env.setupSocket(env.serverType, &env.server, true)
-	env.setupSocket(env.clientType, &env.client, false)
+	env.setupSocket(env.serverType, &env.server, env.endpoint, true)
 }
 
-func (env *Env) destroyEnv() {
+func (env *Env) destroyServer() {
 	if env.server != nil {
 		env.server.Unbind(env.endpoint)
 		env.server.Close()
 	}
+}
+
+func (env *Env) setupClient() {
+	env.setupSocket(env.clientType, &env.client, env.endpoint, false)
+}
+
+func (env *Env) destroyClient() {
 	if env.client != nil {
 		env.client.Disconnect(env.endpoint)
 		env.client.Close()
@@ -75,6 +81,16 @@ func (env *Env) destroyEnv() {
 			env.Fatal("Error on context destruction", err)
 		}
 	}()
+}
+
+func (env *Env) setupEnv() {
+    env.setupServer()
+    env.setupClient()
+}
+
+func (env *Env) destroyEnv() {
+    env.destroyServer()
+    env.destroyClient()
 }
 
 func TestSocketTcpBind(t *testing.T) {
@@ -228,7 +244,7 @@ func TestSocketSubscribe(t *testing.T) {
 	testTopic := "test"
 	totoTopic := "toto"
 	err := env.client.SetOptionString(Subscribe, &testTopic)
-	<-time.After(time.Millisecond)
+	<-time.After(time.Millisecond * 500)
 	if err != nil {
 		t.Fatal("Error on socket subscribe, got", err)
 	}
