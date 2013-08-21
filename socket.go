@@ -207,10 +207,13 @@ func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 
 // SocketOptionInt identifies socket option which returns int value
 type SocketOptionInt C.int
+
 // SocketOptionUint64 identifies socket option which returns uint64 value
 type SocketOptionUint64 C.int
+
 // SocketOptionInt64 identifies socket option which returns int64 value
 type SocketOptionInt64 C.int
+
 // SocketOptionString identifies socket option which returns string value
 type SocketOptionString C.int
 
@@ -342,17 +345,17 @@ type SocketEvent C.int
 
 // Bindings to socket events
 const (
-	EventConnected        = SocketEvent(C.ZMQ_EVENT_CONNECTED)
-	EventConnectDelayed  = SocketEvent(C.ZMQ_EVENT_CONNECT_DELAYED)
+	EventConnected      = SocketEvent(C.ZMQ_EVENT_CONNECTED)
+	EventConnectDelayed = SocketEvent(C.ZMQ_EVENT_CONNECT_DELAYED)
 	EventConnectRetried = SocketEvent(C.ZMQ_EVENT_CONNECT_RETRIED)
-	EventListening        = SocketEvent(C.ZMQ_EVENT_LISTENING)
-	EventBindFailed      = SocketEvent(C.ZMQ_EVENT_BIND_FAILED)
-	EventAccepted         = SocketEvent(C.ZMQ_EVENT_ACCEPTED)
-	EventAcceptFailed    = SocketEvent(C.ZMQ_EVENT_ACCEPT_FAILED)
-	EventClosed           = SocketEvent(C.ZMQ_EVENT_CLOSED)
-	EventCloseFailed     = SocketEvent(C.ZMQ_EVENT_CLOSE_FAILED)
-	EventDisconnected     = SocketEvent(C.ZMQ_EVENT_DISCONNECTED)
-	EventAll              = SocketEvent(C.ZMQ_EVENT_ALL)
+	EventListening      = SocketEvent(C.ZMQ_EVENT_LISTENING)
+	EventBindFailed     = SocketEvent(C.ZMQ_EVENT_BIND_FAILED)
+	EventAccepted       = SocketEvent(C.ZMQ_EVENT_ACCEPTED)
+	EventAcceptFailed   = SocketEvent(C.ZMQ_EVENT_ACCEPT_FAILED)
+	EventClosed         = SocketEvent(C.ZMQ_EVENT_CLOSED)
+	EventCloseFailed    = SocketEvent(C.ZMQ_EVENT_CLOSE_FAILED)
+	EventDisconnected   = SocketEvent(C.ZMQ_EVENT_DISCONNECTED)
+	EventAll            = SocketEvent(C.ZMQ_EVENT_ALL)
 )
 
 // Monitor binds event to the socket
