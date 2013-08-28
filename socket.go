@@ -10,7 +10,6 @@ import "C"
 import (
 	"reflect"
 	"unsafe"
-    "runtime"
 )
 
 // Socket represents a zero mq socket
@@ -196,7 +195,6 @@ func (s *Socket) Recv(flag SendFlag) (*MessagePart, error) {
 	msgPart.Data = data
     zmqMsgPtr := (*zmqMsg)(&msg)
 	msgPart.zmqMsg = zmqMsgPtr
-    runtime.SetFinalizer(zmqMsgPtr, (*zmqMsg).Close)
 
 	return msgPart, nil
 }

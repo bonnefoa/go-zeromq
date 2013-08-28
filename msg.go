@@ -10,7 +10,6 @@ import "C"
 
 import (
 	"reflect"
-	"runtime"
 	"unsafe"
 )
 
@@ -58,7 +57,6 @@ func (m *MessagePart) Close() error {
 
 // Close zmq message to release data and memory
 func (m *zmqMsg) Close() error {
-	runtime.SetFinalizer(m, nil)
 	rc, err := C.zmq_msg_close((*C.zmq_msg_t)(m))
 	if rc == -1 {
 		return err
